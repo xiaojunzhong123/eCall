@@ -1,7 +1,10 @@
-/*******************************************************************************
- * @file  Ecall.c
- * @brief TBOX eCall application state machine.
- ******************************************************************************/
+/*******************************************************
+  * Name    :Ecall.c
+  * Author  :LoH
+  * Function:TBOX eCall application state machine.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 #include "Ecall.h"
 #include <stddef.h>
 #include "GnssService.h"
@@ -14,6 +17,13 @@ static EcallMsd_t m_stEcallMsd;
 static uint8_t m_u8SessionActive = 0U;
 static uint8_t m_u8CallRequestSent = 0U;
 
+/*******************************************************
+  * Name    :Ecall_GetTriggerMask
+  * Author  :LoH
+  * Function:Convert one trigger source to persistent trigger bit.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 static uint8_t Ecall_GetTriggerMask(EcallTrigger_t enTrigger)
 {
     if (enTrigger == ECALL_TRIGGER_MANUAL)
@@ -34,6 +44,13 @@ static uint8_t Ecall_GetTriggerMask(EcallTrigger_t enTrigger)
     }
 }
 
+/*******************************************************
+  * Name    :Ecall_Init
+  * Author  :LoH
+  * Function:Initialize all eCall session data to standby.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Ecall_Init(void)
 {
     m_enEcallState = ECALL_STATE_STANDBY;
@@ -46,11 +63,25 @@ void Ecall_Init(void)
     m_u8CallRequestSent = 0U;
 }
 
+/*******************************************************
+  * Name    :Ecall_OnTrigger
+  * Author  :LoH
+  * Function:Process one eCall trigger source.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Ecall_OnTrigger(EcallTrigger_t enTrigger)
 {
     Ecall_OnTriggerMask(Ecall_GetTriggerMask(enTrigger));
 }
 
+/*******************************************************
+  * Name    :Ecall_OnTriggerMask
+  * Author  :LoH
+  * Function:Start session or merge active trigger sources.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Ecall_OnTriggerMask(uint8_t u8TriggerMask)
 {
     u8TriggerMask &= ECALL_TRIGGER_MASK_ALL;
@@ -79,6 +110,13 @@ void Ecall_OnTriggerMask(uint8_t u8TriggerMask)
     }
 }
 
+/*******************************************************
+  * Name    :Ecall_OnGnssResult
+  * Author  :LoH
+  * Function:Freeze GNSS data and request emergency call.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Ecall_OnGnssResult(const EcallMsd_t *pstMsd, uint8_t u8Valid)
 {
     if ((m_u8SessionActive == 0U) || (m_enEcallState != ECALL_STATE_WAIT_GNSS))
@@ -107,11 +145,25 @@ void Ecall_OnGnssResult(const EcallMsd_t *pstMsd, uint8_t u8Valid)
     Hmi_ShowEcallState(m_enEcallState);
 }
 
+/*******************************************************
+  * Name    :Ecall_OnGnssTimeout
+  * Author  :LoH
+  * Function:Handle GNSS timeout and continue emergency call.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Ecall_OnGnssTimeout(void)
 {
     Ecall_OnGnssResult(NULL, 0U);
 }
 
+/*******************************************************
+  * Name    :Ecall_OnCallActive
+  * Author  :LoH
+  * Function:Update state when modem reports active call.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Ecall_OnCallActive(void)
 {
     if ((m_u8SessionActive != 0U) && (m_enEcallState == ECALL_STATE_WAIT_CALL_ACTIVE))
@@ -121,6 +173,13 @@ void Ecall_OnCallActive(void)
     }
 }
 
+/*******************************************************
+  * Name    :Ecall_OnCallEnded
+  * Author  :LoH
+  * Function:Complete active session after call ends.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Ecall_OnCallEnded(void)
 {
     if (m_u8SessionActive != 0U)
@@ -135,6 +194,13 @@ void Ecall_OnCallEnded(void)
     }
 }
 
+/*******************************************************
+  * Name    :Ecall_OnCallFailed
+  * Author  :LoH
+  * Function:Complete active session after call failure.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Ecall_OnCallFailed(void)
 {
     if (m_u8SessionActive != 0U)
@@ -149,11 +215,25 @@ void Ecall_OnCallFailed(void)
     }
 }
 
+/*******************************************************
+  * Name    :Ecall_GetState
+  * Author  :LoH
+  * Function:Return current eCall session state.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 EcallState_t Ecall_GetState(void)
 {
     return m_enEcallState;
 }
 
+/*******************************************************
+  * Name    :Ecall_IsSessionActive
+  * Author  :LoH
+  * Function:Return whether an eCall session is active.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 uint8_t Ecall_IsSessionActive(void)
 {
     return m_u8SessionActive;

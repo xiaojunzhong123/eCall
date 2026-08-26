@@ -1,13 +1,23 @@
-/*******************************************************************************
- * @file  GnssTask.c
- * @brief RTOS context for GNSS snapshot service processing.
- ******************************************************************************/
+/*******************************************************
+  * Name    :GnssTask.c
+  * Author  :LoH
+  * Function:GNSS snapshot RTOS task entry and creation.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 #include "cmsis_os.h"
 #include "Ecall.h"
 #include "GnssService.h"
 #include "Hmi.h"
 #include "TaskManager.h"
 
+/*******************************************************
+  * Name    :GnssTask_Entry
+  * Author  :LoH
+  * Function:Update GNSS data and report eCall GNSS result.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 static void GnssTask_Entry(void const *argument)
 {
     uint8_t u8RequestReported = 0U;
@@ -36,6 +46,13 @@ static void GnssTask_Entry(void const *argument)
     }
 }
 
+/*******************************************************
+  * Name    :GnssTask_Create
+  * Author  :LoH
+  * Function:Create GnssTask with below-normal priority.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void GnssTask_Create(void)
 {
     osThreadDef(GnssTask, GnssTask_Entry, osPriorityBelowNormal, 0U, 384U);

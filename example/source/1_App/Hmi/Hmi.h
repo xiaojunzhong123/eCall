@@ -1,7 +1,10 @@
-/*******************************************************************************
- * @file  Hmi.h
- * @brief Sample display interface for the TBOX application.
- ******************************************************************************/
+/*******************************************************
+  * Name    :Hmi.h
+  * Author  :LoH
+  * Function:TBOX HMI log and status display interface.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 #ifndef __HMI_H__
 #define __HMI_H__
 
@@ -17,10 +20,14 @@
 #define HMI_LOG_APP_ENABLE            1U
 #define HMI_LOG_TASK_ENABLE           1U
 
+/* Initialize the HMI log buffer. */
 void Hmi_Init(void);
+/* Submit one log message, optionally with a module prefix. */
 void Hmi_Log(const char *pcText);
 void Hmi_LogWithPrefix(const char *pcPrefix, const char *pcText);
+/* Process one queued log message in AppTask context. */
 void Hmi_Process(void);
+/* Show task startup and eCall state information. */
 void Hmi_ShowTaskStarted(const char *pcTaskName);
 void Hmi_ShowEcallState(EcallState_t enState);
 void Hmi_ShowText(const char *pcText);

@@ -1,7 +1,10 @@
-/*******************************************************************************
- * @file  Ecall.h
- * @brief TBOX eCall application state machine interface.
- ******************************************************************************/
+/*******************************************************
+  * Name    :Ecall.h
+  * Author  :LoH
+  * Function:TBOX eCall application state machine interface.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 #ifndef __ECALL_H__
 #define __ECALL_H__
 
@@ -41,14 +44,21 @@ typedef struct
     uint32_t utc_seconds;
 } EcallMsd_t;
 
+/* Initialize eCall session state. */
 void Ecall_Init(void);
+/* Submit one trigger source to the eCall state machine. */
 void Ecall_OnTrigger(EcallTrigger_t trigger);
+/* Submit merged trigger source bits to the eCall state machine. */
 void Ecall_OnTriggerMask(uint8_t u8TriggerMask);
+/* Update the eCall snapshot with the GNSS result. */
 void Ecall_OnGnssResult(const EcallMsd_t *msd, uint8_t valid);
+/* Continue eCall when GNSS acquisition times out. */
 void Ecall_OnGnssTimeout(void);
+/* Report modem call state transitions. */
 void Ecall_OnCallActive(void);
 void Ecall_OnCallEnded(void);
 void Ecall_OnCallFailed(void);
+/* Read current eCall state and session activity. */
 EcallState_t Ecall_GetState(void);
 uint8_t Ecall_IsSessionActive(void);
 

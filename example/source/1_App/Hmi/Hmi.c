@@ -1,7 +1,10 @@
-/*******************************************************************************
- * @file  Hmi.c
- * @brief Sample display implementation with a static log ring buffer.
- ******************************************************************************/
+/*******************************************************
+  * Name    :Hmi.c
+  * Author  :LoH
+  * Function:TBOX HMI log implementation with static ring buffer.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 #include "FreeRTOS.h"
 #include "Hmi.h"
 #include "Uart.h"
@@ -21,11 +24,25 @@ static uint8_t m_u8WriteIndex = 0U;
 static uint8_t m_u8LogCount = 0U;
 static uint16_t m_u16DropCount = 0U;
 
+/*******************************************************
+  * Name    :Hmi_Write
+  * Author  :LoH
+  * Function:Send one complete log record through UART.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 static void Hmi_Write(const uint8_t *pu8Text, uint8_t u8Length)
 {
     (void)Uart_TxData((uint8_t *)pu8Text, u8Length);
 }
 
+/*******************************************************
+  * Name    :Hmi_Init
+  * Author  :LoH
+  * Function:Reset HMI log ring buffer runtime data.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Hmi_Init(void)
 {
     m_u8ReadIndex = 0U;
@@ -34,6 +51,13 @@ void Hmi_Init(void)
     m_u16DropCount = 0U;
 }
 
+/*******************************************************
+  * Name    :Hmi_Log
+  * Author  :LoH
+  * Function:Copy one log record into static ring buffer.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Hmi_Log(const char *pcText)
 {
     uint8_t u8Length = 0U;
@@ -74,6 +98,13 @@ void Hmi_Log(const char *pcText)
     portEXIT_CRITICAL();
 }
 
+/*******************************************************
+  * Name    :Hmi_LogWithPrefix
+  * Author  :LoH
+  * Function:Merge module prefix and text into one record.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Hmi_LogWithPrefix(const char *pcPrefix, const char *pcText)
 {
     uint8_t au8Text[HMI_LOG_SLOT_LENGTH];
@@ -96,6 +127,13 @@ void Hmi_LogWithPrefix(const char *pcPrefix, const char *pcText)
     Hmi_Log((const char *)au8Text);
 }
 
+/*******************************************************
+  * Name    :Hmi_Process
+  * Author  :LoH
+  * Function:Transmit one log record in AppTask context.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Hmi_Process(void)
 {
     uint8_t au8Text[HMI_LOG_SLOT_LENGTH];
@@ -127,6 +165,13 @@ void Hmi_Process(void)
     }
 }
 
+/*******************************************************
+  * Name    :Hmi_ShowTaskStarted
+  * Author  :LoH
+  * Function:Build and submit task-started status message.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Hmi_ShowTaskStarted(const char *pcTaskName)
 {
 #if (HMI_LOG_TASK_ENABLE != 0U)
@@ -154,6 +199,13 @@ void Hmi_ShowTaskStarted(const char *pcTaskName)
 #endif
 }
 
+/*******************************************************
+  * Name    :Hmi_ShowEcallState
+  * Author  :LoH
+  * Function:Convert eCall state to a module log message.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Hmi_ShowEcallState(EcallState_t enState)
 {
 #if (HMI_LOG_ECALL_ENABLE != 0U)
@@ -194,6 +246,13 @@ void Hmi_ShowEcallState(EcallState_t enState)
 #endif
 }
 
+/*******************************************************
+  * Name    :Hmi_ShowText
+  * Author  :LoH
+  * Function:Submit plain HMI log message.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void Hmi_ShowText(const char *pcText)
 {
     Hmi_Log(pcText);

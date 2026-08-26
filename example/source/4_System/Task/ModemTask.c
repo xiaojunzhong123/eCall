@@ -1,12 +1,22 @@
-/*******************************************************************************
- * @file  ModemTask.c
- * @brief RTOS context for modem call service processing.
- ******************************************************************************/
+/*******************************************************
+  * Name    :ModemTask.c
+  * Author  :LoH
+  * Function:Modem call RTOS task entry and creation.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 #include "cmsis_os.h"
 #include "Hmi.h"
 #include "ModemService.h"
 #include "TaskManager.h"
 
+/*******************************************************
+  * Name    :ModemTask_Entry
+  * Author  :LoH
+  * Function:Process modem service and report call states.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 static void ModemTask_Entry(void const *argument)
 {
     ModemCallState_t enLastState = MODEM_CALL_IDLE;
@@ -44,6 +54,13 @@ static void ModemTask_Entry(void const *argument)
     }
 }
 
+/*******************************************************
+  * Name    :ModemTask_Create
+  * Author  :LoH
+  * Function:Create ModemTask with above-normal priority.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void ModemTask_Create(void)
 {
     osThreadDef(ModemTask, ModemTask_Entry, osPriorityAboveNormal, 0U, 512U);

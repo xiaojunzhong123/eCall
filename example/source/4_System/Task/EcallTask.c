@@ -1,7 +1,10 @@
-/*******************************************************************************
- * @file  EcallTask.c
- * @brief RTOS context for the TBOX eCall state machine.
- ******************************************************************************/
+/*******************************************************
+  * Name    :EcallTask.c
+  * Author  :LoH
+  * Function:TBOX eCall event task, trigger arbitration and task creation.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 #include "cmsis_os.h"
 #include "FreeRTOS.h"
 #include "Ecall.h"
@@ -14,6 +17,13 @@ static osMessageQId m_xEcallEventQueue;
 static uint8_t m_u8PendingTriggerMask = 0U;
 static uint8_t m_u8TriggerWakePending = 0U;
 
+/*******************************************************
+  * Name    :EcallTask_GetTriggerMask
+  * Author  :LoH
+  * Function:Convert trigger source to pending trigger bit.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 static uint8_t EcallTask_GetTriggerMask(EcallTrigger_t enTrigger)
 {
     if (enTrigger == ECALL_TRIGGER_MANUAL)
@@ -34,6 +44,13 @@ static uint8_t EcallTask_GetTriggerMask(EcallTrigger_t enTrigger)
     }
 }
 
+/*******************************************************
+  * Name    :EcallTask_ProcessPendingTriggers
+  * Author  :LoH
+  * Function:Consume pending trigger sources in task context.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 static void EcallTask_ProcessPendingTriggers(void)
 {
     uint8_t u8TriggerMask;
@@ -50,6 +67,13 @@ static void EcallTask_ProcessPendingTriggers(void)
     }
 }
 
+/*******************************************************
+  * Name    :EcallTask_Entry
+  * Author  :LoH
+  * Function:Wait events and drive eCall state machine.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 static void EcallTask_Entry(void const *argument)
 {
     osEvent xEvent;
@@ -99,6 +123,13 @@ static void EcallTask_Entry(void const *argument)
     }
 }
 
+/*******************************************************
+  * Name    :EcallTask_Create
+  * Author  :LoH
+  * Function:Create eCall event queue and task.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void EcallTask_Create(void)
 {
     m_xEcallEventQueue = osMessageCreate(osMessageQ(EcallTaskEventQueue), NULL);
@@ -108,6 +139,13 @@ void EcallTask_Create(void)
     (void)osThreadCreate(osThread(EcallTask), NULL);
 }
 
+/*******************************************************
+  * Name    :EcallTask_PostEvent
+  * Author  :LoH
+  * Function:Queue one non-trigger event for EcallTask.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void EcallTask_PostEvent(EcallTaskEvent_t enEvent)
 {
     if (m_xEcallEventQueue != NULL)
@@ -116,6 +154,13 @@ void EcallTask_PostEvent(EcallTaskEvent_t enEvent)
     }
 }
 
+/*******************************************************
+  * Name    :EcallTask_RequestTrigger
+  * Author  :LoH
+  * Function:Latch trigger source and wake EcallTask once.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void EcallTask_RequestTrigger(EcallTrigger_t enTrigger)
 {
     uint8_t u8TriggerMask;

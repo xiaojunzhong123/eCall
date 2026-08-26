@@ -1,11 +1,21 @@
-/*******************************************************************************
- * @file  AppTask.c
- * @brief RTOS context for HMI and sample manual eCall trigger.
- ******************************************************************************/
+/*******************************************************
+  * Name    :AppTask.c
+  * Author  :LoH
+  * Function:HMI processing and P1 manual eCall trigger task.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 #include "cmsis_os.h"
 #include "Hmi.h"
 #include "TaskManager.h"
 
+/*******************************************************
+  * Name    :AppTask_Entry
+  * Author  :LoH
+  * Function:Execute HMI processing and P1 application logic.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 static void AppTask_Entry(void const *argument)
 {
     uint8_t u8MockTriggerSent = 0U;
@@ -30,6 +40,13 @@ static void AppTask_Entry(void const *argument)
     }
 }
 
+/*******************************************************
+  * Name    :AppTask_Create
+  * Author  :LoH
+  * Function:Create AppTask with normal RTOS priority.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void AppTask_Create(void)
 {
     osThreadDef(AppTask, AppTask_Entry, osPriorityNormal, 0U, 384U);

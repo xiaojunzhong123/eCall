@@ -1,7 +1,10 @@
-/*******************************************************************************
- * @file  TaskManager.c
- * @brief RTOS task creation for the TBOX P1 skeleton.
- ******************************************************************************/
+/*******************************************************
+  * Name    :TaskManager.c
+  * Author  :LoH
+  * Function:TBOX P1 RTOS service initialization and task creation.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 #include "CanService.h"
 #include "Ecall.h"
 #include "GnssService.h"
@@ -18,6 +21,13 @@ extern void MonitoringTask_Create(void);
 extern void AppTask_Create(void);
 extern void PowTask_Create(void);
 
+/*******************************************************
+  * Name    :TaskManager_Start
+  * Author  :LoH
+  * Function:Initialize services and create business tasks.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
 void TaskManager_Start(void)
 {
     Hmi_Init();

@@ -33,7 +33,21 @@ typedef enum
     RTE_FUNIND_RfSleepmMode,
     RTE_Fun_ID_MAX_NUM
 } Rte_Fun_Type;
+
+typedef enum
+{
+    RTE_SWITCH_RELEASED = 0U,
+    RTE_SWITCH_PRESSED
+} RteSwitchState_t;
+
+typedef enum
+{
+    RTESYS_U8_SOS_SWITCH_STATE = 0U,
+    RTESYS_U8_TYPE_MAX
+} RteSys_U8_Type;
 /*-------------function port--------------------------*/
+extern void    RteSys_SetU8Sig(RteSys_U8_Type id, uint8_t sig);
+extern uint8_t RteSys_GetU8Sig(RteSys_U8_Type id);
 
 #endif
 

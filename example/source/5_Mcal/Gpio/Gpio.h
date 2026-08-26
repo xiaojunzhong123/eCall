@@ -20,7 +20,7 @@ typedef enum
 
 typedef enum
 {
-    E_INPUT_Ign1_In = 0U,
+    E_INPUT_ECALL_SOS_SWITCH = 0U,
     E_INPUT_GPIO_NUM
 } E_GPIO_INPUT_INDEX;
 
