@@ -10,7 +10,7 @@
 #include "RteSys.h"
 
 #define INPUT_SERVICE_PERIOD_MS             10U
-#define INPUT_SERVICE_SOS_DEBOUNCE_MS       30U
+#define INPUT_SERVICE_SOS_DEBOUNCE_MS       50U
 
 static RteSwitchState_t m_enSosSwitchState = RTE_SWITCH_RELEASED;
 static uint8_t m_u8SosDebounceTime = 0U;

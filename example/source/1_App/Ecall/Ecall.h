@@ -13,6 +13,7 @@
 typedef enum
 {
     ECALL_STATE_STANDBY = 0U,
+    ECALL_STATE_MANUAL_CANCEL_WINDOW,
     ECALL_STATE_WAIT_GNSS,
     ECALL_STATE_BUILD_MSD,
     ECALL_STATE_WAIT_CALL_ACTIVE,
@@ -35,6 +36,8 @@ typedef enum
                                        ECALL_TRIGGER_MASK_AUTO | \
                                        ECALL_TRIGGER_MASK_CAN)
 
+#define ECALL_MANUAL_CANCEL_WINDOW_MS 10000U
+
 typedef struct
 {
     uint8_t trigger_mask;
@@ -50,6 +53,10 @@ void Ecall_Init(void);
 void Ecall_OnTrigger(EcallTrigger_t trigger);
 /* Submit merged trigger source bits to the eCall state machine. */
 void Ecall_OnTriggerMask(uint8_t u8TriggerMask);
+/* Cancel the active manual eCall request before dialing. */
+void Ecall_OnManualCancel(void);
+/* Start the formal eCall sequence after the cancel window expires. */
+void Ecall_OnManualCancelTimeout(void);
 /* Update the eCall snapshot with the GNSS result. */
 void Ecall_OnGnssResult(const EcallMsd_t *msd, uint8_t valid);
 /* Continue eCall when GNSS acquisition times out. */

@@ -7,7 +7,13 @@
 *******************************************************/
 #include "cmsis_os.h"
 #include "Hmi.h"
+#include "InputService.h"
+#include "RteSys.h"
 #include "TaskManager.h"
+
+#define APP_TASK_PERIOD_MS                 10U
+#define APP_TASK_SOS_TRIGGER_HOLD_MS       2000U
+#define APP_TASK_SOS_CANCEL_HOLD_MS        1000U
 
 /*******************************************************
   * Name    :AppTask_Entry
@@ -18,8 +24,12 @@
 *******************************************************/
 static void AppTask_Entry(void const *argument)
 {
-    uint8_t u8MockTriggerSent = 0U;
-    uint16_t u16ElapsedMs = 0U;
+    RteSwitchState_t enCurrentSosState;
+    EcallState_t enEcallState;
+    uint16_t u16SosTriggerHoldMs = 0U;
+    uint16_t u16SosCancelHoldMs = 0U;
+    uint8_t u8ManualTriggerSent = 0U;
+    uint8_t u8ManualCancelArmed = 0U;
 
     (void)argument;
     Hmi_ShowTaskStarted("AppTask");
@@ -27,16 +37,77 @@ static void AppTask_Entry(void const *argument)
     for (;;)
     {
         Hmi_Process();
+        InputService_Process10ms();
+        enCurrentSosState = (RteSwitchState_t)RteSys_GetU8Sig(RTESYS_U8_SOS_SWITCH_STATE);
+        enEcallState = Ecall_GetState();
 
-        if ((u8MockTriggerSent == 0U) && (u16ElapsedMs >= 2000U))
+        if (enEcallState == ECALL_STATE_STANDBY)
         {
-            EcallTask_PostEvent(ECALL_TASK_EVT_MANUAL_TRIGGER);
-            u8MockTriggerSent = 1U;
+            u16SosCancelHoldMs = 0U;
+            u8ManualCancelArmed = 0U;
+
+            if (enCurrentSosState == RTE_SWITCH_RELEASED)
+            {
+                u16SosTriggerHoldMs = 0U;
+                u8ManualTriggerSent = 0U;
+            }
+            else if (u8ManualTriggerSent == 0U)
+            {
+                if (u16SosTriggerHoldMs < APP_TASK_SOS_TRIGGER_HOLD_MS)
+                {
+                    u16SosTriggerHoldMs += APP_TASK_PERIOD_MS;
+                }
+
+                if (u16SosTriggerHoldMs >= APP_TASK_SOS_TRIGGER_HOLD_MS)
+                {
+                    HMI_LOG_APP("SOS manual trigger\r\n");
+                    EcallTask_RequestTrigger(ECALL_TRIGGER_MANUAL);
+                    u8ManualTriggerSent = 1U;
+                }
+            }
+            else
+            {
+                /* Wait for SOS release before allowing another manual trigger. */
+            }
+        }
+        else if (enEcallState == ECALL_STATE_MANUAL_CANCEL_WINDOW)
+        {
+            u16SosTriggerHoldMs = 0U;
+
+            if (enCurrentSosState == RTE_SWITCH_RELEASED)
+            {
+                u8ManualCancelArmed = 1U;
+                u16SosCancelHoldMs = 0U;
+            }
+            else if (u8ManualCancelArmed != 0U)
+            {
+                if (u16SosCancelHoldMs < APP_TASK_SOS_CANCEL_HOLD_MS)
+                {
+                    u16SosCancelHoldMs += APP_TASK_PERIOD_MS;
+                }
+
+                if (u16SosCancelHoldMs >= APP_TASK_SOS_CANCEL_HOLD_MS)
+                {
+                    HMI_LOG_APP("SOS manual cancel\r\n");
+                    EcallTask_PostEvent(ECALL_TASK_EVT_MANUAL_CANCEL);
+                    u8ManualCancelArmed = 0U;
+                    u16SosCancelHoldMs = 0U;
+                }
+            }
+            else
+            {
+                /* Initial trigger press must be released before cancel is armed. */
+            }
+        }
+        else
+        {
+            u16SosTriggerHoldMs = 0U;
+            u16SosCancelHoldMs = 0U;
+            u8ManualCancelArmed = 0U;
         }
 
-        /* P1 placeholder: future SOS key, UART command, LED and watchdog. */
-        osDelay(10U);
-        u16ElapsedMs += 10U;
+        /* P1 placeholder: future UART command, LED and watchdog. */
+        osDelay(APP_TASK_PERIOD_MS);
     }
 }
 

@@ -31,6 +31,8 @@ void Hmi_Process(void);
 void Hmi_ShowTaskStarted(const char *pcTaskName);
 void Hmi_ShowEcallState(EcallState_t enState);
 void Hmi_ShowText(const char *pcText);
+/* Enable or disable the manual eCall cancel-window LED indication. */
+void Hmi_SetEcallCancelWindow(uint8_t u8Active);
 
 #if (HMI_LOG_ECALL_ENABLE != 0U)
 #define HMI_LOG_ECALL(pcText)         Hmi_LogWithPrefix("[ECALL] ", pcText)

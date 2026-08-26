@@ -18,6 +18,22 @@ static uint8_t m_u8SessionActive = 0U;
 static uint8_t m_u8CallRequestSent = 0U;
 
 /*******************************************************
+  * Name    :Ecall_ClearMsd
+  * Author  :LoH
+  * Function:Clear the local MSD cache.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
+static void Ecall_ClearMsd(void)
+{
+    m_stEcallMsd.trigger_mask = 0U;
+    m_stEcallMsd.gnss_valid = 0U;
+    m_stEcallMsd.latitude_e7 = 0;
+    m_stEcallMsd.longitude_e7 = 0;
+    m_stEcallMsd.utc_seconds = 0U;
+}
+
+/*******************************************************
   * Name    :Ecall_GetTriggerMask
   * Author  :LoH
   * Function:Convert one trigger source to persistent trigger bit.
@@ -54,13 +70,10 @@ static uint8_t Ecall_GetTriggerMask(EcallTrigger_t enTrigger)
 void Ecall_Init(void)
 {
     m_enEcallState = ECALL_STATE_STANDBY;
-    m_stEcallMsd.trigger_mask = 0U;
-    m_stEcallMsd.gnss_valid = 0U;
-    m_stEcallMsd.latitude_e7 = 0;
-    m_stEcallMsd.longitude_e7 = 0;
-    m_stEcallMsd.utc_seconds = 0U;
+    Ecall_ClearMsd();
     m_u8SessionActive = 0U;
     m_u8CallRequestSent = 0U;
+    Hmi_SetEcallCancelWindow(0U);
 }
 
 /*******************************************************
@@ -84,30 +97,92 @@ void Ecall_OnTrigger(EcallTrigger_t enTrigger)
 *******************************************************/
 void Ecall_OnTriggerMask(uint8_t u8TriggerMask)
 {
+    uint8_t u8AutomaticTrigger;
+
     u8TriggerMask &= ECALL_TRIGGER_MASK_ALL;
     if (u8TriggerMask == 0U)
     {
         return;
     }
 
+    u8AutomaticTrigger = u8TriggerMask & (ECALL_TRIGGER_MASK_AUTO | ECALL_TRIGGER_MASK_CAN);
+
     if (m_u8SessionActive == 0U)
     {
-        m_stEcallMsd.trigger_mask = 0U;
-        m_stEcallMsd.gnss_valid = 0U;
-        m_stEcallMsd.latitude_e7 = 0;
-        m_stEcallMsd.longitude_e7 = 0;
-        m_stEcallMsd.utc_seconds = 0U;
+        Ecall_ClearMsd();
         m_stEcallMsd.trigger_mask = u8TriggerMask;
         m_u8SessionActive = 1U;
         m_u8CallRequestSent = 0U;
         PowerService_SetEcallLock(1U);
-        m_enEcallState = ECALL_STATE_WAIT_GNSS;
+
+        if (u8AutomaticTrigger != 0U)
+        {
+            m_enEcallState = ECALL_STATE_WAIT_GNSS;
+        }
+        else
+        {
+            m_enEcallState = ECALL_STATE_MANUAL_CANCEL_WINDOW;
+            Hmi_SetEcallCancelWindow(1U);
+        }
         Hmi_ShowEcallState(m_enEcallState);
     }
     else
     {
         m_stEcallMsd.trigger_mask |= u8TriggerMask;
+
+        if ((m_enEcallState == ECALL_STATE_MANUAL_CANCEL_WINDOW)
+            && (u8AutomaticTrigger != 0U))
+        {
+            Hmi_SetEcallCancelWindow(0U);
+            m_enEcallState = ECALL_STATE_WAIT_GNSS;
+            HMI_LOG_ECALL("AUTO_TRIGGER_PREEMPTS_CANCEL\r\n");
+            Hmi_ShowEcallState(m_enEcallState);
+        }
     }
+}
+
+/*******************************************************
+  * Name    :Ecall_OnManualCancel
+  * Author  :LoH
+  * Function:Cancel a manual request during cancel window.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
+void Ecall_OnManualCancel(void)
+{
+    if (m_enEcallState != ECALL_STATE_MANUAL_CANCEL_WINDOW)
+    {
+        return;
+    }
+
+    Hmi_SetEcallCancelWindow(0U);
+    Ecall_ClearMsd();
+    PowerService_SetEcallLock(0U);
+    m_u8SessionActive = 0U;
+    m_u8CallRequestSent = 0U;
+    m_enEcallState = ECALL_STATE_STANDBY;
+    HMI_LOG_ECALL("MANUAL_CANCELLED\r\n");
+    Hmi_ShowEcallState(m_enEcallState);
+}
+
+/*******************************************************
+  * Name    :Ecall_OnManualCancelTimeout
+  * Author  :LoH
+  * Function:Continue manual eCall after cancel window timeout.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
+void Ecall_OnManualCancelTimeout(void)
+{
+    if (m_enEcallState != ECALL_STATE_MANUAL_CANCEL_WINDOW)
+    {
+        return;
+    }
+
+    Hmi_SetEcallCancelWindow(0U);
+    m_enEcallState = ECALL_STATE_WAIT_GNSS;
+    HMI_LOG_ECALL("MANUAL_CANCEL_WINDOW_TIMEOUT\r\n");
+    Hmi_ShowEcallState(m_enEcallState);
 }
 
 /*******************************************************
@@ -184,6 +259,7 @@ void Ecall_OnCallEnded(void)
 {
     if (m_u8SessionActive != 0U)
     {
+        Hmi_SetEcallCancelWindow(0U);
         m_enEcallState = ECALL_STATE_COMPLETE;
         Hmi_ShowEcallState(m_enEcallState);
         PowerService_SetEcallLock(0U);
@@ -205,6 +281,7 @@ void Ecall_OnCallFailed(void)
 {
     if (m_u8SessionActive != 0U)
     {
+        Hmi_SetEcallCancelWindow(0U);
         m_enEcallState = ECALL_STATE_FAILED;
         Hmi_ShowEcallState(m_enEcallState);
         PowerService_SetEcallLock(0U);

@@ -78,13 +78,40 @@ static void EcallTask_Entry(void const *argument)
 {
     osEvent xEvent;
     EcallMsd_t stMsd;
+    uint32_t u32CancelWindowDeadline = 0U;
+    uint32_t u32CurrentTick;
+    uint32_t u32WaitMs;
+    uint8_t u8CancelWindowTimerActive = 0U;
 
     (void)argument;
     Hmi_ShowTaskStarted("EcallTask");
 
     for (;;)
     {
-        xEvent = osMessageGet(m_xEcallEventQueue, osWaitForever);
+        if (Ecall_GetState() == ECALL_STATE_MANUAL_CANCEL_WINDOW)
+        {
+            u32CurrentTick = osKernelSysTick();
+            if (u8CancelWindowTimerActive == 0U)
+            {
+                u32CancelWindowDeadline = u32CurrentTick + ECALL_MANUAL_CANCEL_WINDOW_MS;
+                u8CancelWindowTimerActive = 1U;
+            }
+
+            if ((int32_t)(u32CancelWindowDeadline - u32CurrentTick) <= 0)
+            {
+                Ecall_OnManualCancelTimeout();
+                u8CancelWindowTimerActive = 0U;
+                continue;
+            }
+            u32WaitMs = u32CancelWindowDeadline - u32CurrentTick;
+        }
+        else
+        {
+            u8CancelWindowTimerActive = 0U;
+            u32WaitMs = osWaitForever;
+        }
+
+        xEvent = osMessageGet(m_xEcallEventQueue, u32WaitMs);
         if (xEvent.status == osEventMessage)
         {
             switch ((EcallTaskEvent_t)xEvent.value.v)
@@ -93,6 +120,9 @@ static void EcallTask_Entry(void const *argument)
                     break;
                 case ECALL_TASK_EVT_MANUAL_TRIGGER:
                     EcallTask_RequestTrigger(ECALL_TRIGGER_MANUAL);
+                    break;
+                case ECALL_TASK_EVT_MANUAL_CANCEL:
+                    Ecall_OnManualCancel();
                     break;
                 case ECALL_TASK_EVT_AUTO_TRIGGER:
                     EcallTask_RequestTrigger(ECALL_TRIGGER_AUTO);
@@ -119,6 +149,11 @@ static void EcallTask_Entry(void const *argument)
                     break;
             }
             EcallTask_ProcessPendingTriggers();
+        }
+        else if (xEvent.status == osEventTimeout)
+        {
+            Ecall_OnManualCancelTimeout();
+            u8CancelWindowTimerActive = 0U;
         }
     }
 }
