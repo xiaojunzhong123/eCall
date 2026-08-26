@@ -12,24 +12,25 @@
 static EcallState_t m_enEcallState = ECALL_STATE_STANDBY;
 static EcallMsd_t m_stEcallMsd;
 static uint8_t m_u8SessionActive = 0U;
+static uint8_t m_u8CallRequestSent = 0U;
 
-static void Ecall_AddTrigger(EcallTrigger_t enTrigger)
+static uint8_t Ecall_GetTriggerMask(EcallTrigger_t enTrigger)
 {
     if (enTrigger == ECALL_TRIGGER_MANUAL)
     {
-        m_stEcallMsd.trigger_mask |= 0x01U;
+        return ECALL_TRIGGER_MASK_MANUAL;
     }
     else if (enTrigger == ECALL_TRIGGER_AUTO)
     {
-        m_stEcallMsd.trigger_mask |= 0x02U;
+        return ECALL_TRIGGER_MASK_AUTO;
     }
     else if (enTrigger == ECALL_TRIGGER_CAN)
     {
-        m_stEcallMsd.trigger_mask |= 0x04U;
+        return ECALL_TRIGGER_MASK_CAN;
     }
     else
     {
-        /* Invalid trigger is ignored. */
+        return 0U;
     }
 }
 
@@ -42,10 +43,22 @@ void Ecall_Init(void)
     m_stEcallMsd.longitude_e7 = 0;
     m_stEcallMsd.utc_seconds = 0U;
     m_u8SessionActive = 0U;
+    m_u8CallRequestSent = 0U;
 }
 
 void Ecall_OnTrigger(EcallTrigger_t enTrigger)
 {
+    Ecall_OnTriggerMask(Ecall_GetTriggerMask(enTrigger));
+}
+
+void Ecall_OnTriggerMask(uint8_t u8TriggerMask)
+{
+    u8TriggerMask &= ECALL_TRIGGER_MASK_ALL;
+    if (u8TriggerMask == 0U)
+    {
+        return;
+    }
+
     if (m_u8SessionActive == 0U)
     {
         m_stEcallMsd.trigger_mask = 0U;
@@ -53,13 +66,17 @@ void Ecall_OnTrigger(EcallTrigger_t enTrigger)
         m_stEcallMsd.latitude_e7 = 0;
         m_stEcallMsd.longitude_e7 = 0;
         m_stEcallMsd.utc_seconds = 0U;
+        m_stEcallMsd.trigger_mask = u8TriggerMask;
         m_u8SessionActive = 1U;
+        m_u8CallRequestSent = 0U;
         PowerService_SetEcallLock(1U);
         m_enEcallState = ECALL_STATE_WAIT_GNSS;
         Hmi_ShowEcallState(m_enEcallState);
     }
-
-    Ecall_AddTrigger(enTrigger);
+    else
+    {
+        m_stEcallMsd.trigger_mask |= u8TriggerMask;
+    }
 }
 
 void Ecall_OnGnssResult(const EcallMsd_t *pstMsd, uint8_t u8Valid)
@@ -81,7 +98,11 @@ void Ecall_OnGnssResult(const EcallMsd_t *pstMsd, uint8_t u8Valid)
     Hmi_ShowEcallState(m_enEcallState);
 
     /* P1 only freezes the MSD structure; standard encoding is deferred. */
-    ModemService_RequestEmergencyCall(&m_stEcallMsd);
+    if (m_u8CallRequestSent == 0U)
+    {
+        m_u8CallRequestSent = 1U;
+        ModemService_RequestEmergencyCall(&m_stEcallMsd);
+    }
     m_enEcallState = ECALL_STATE_WAIT_CALL_ACTIVE;
     Hmi_ShowEcallState(m_enEcallState);
 }
@@ -108,6 +129,7 @@ void Ecall_OnCallEnded(void)
         Hmi_ShowEcallState(m_enEcallState);
         PowerService_SetEcallLock(0U);
         m_u8SessionActive = 0U;
+        m_u8CallRequestSent = 0U;
         m_enEcallState = ECALL_STATE_STANDBY;
         Hmi_ShowEcallState(m_enEcallState);
     }
@@ -121,6 +143,7 @@ void Ecall_OnCallFailed(void)
         Hmi_ShowEcallState(m_enEcallState);
         PowerService_SetEcallLock(0U);
         m_u8SessionActive = 0U;
+        m_u8CallRequestSent = 0U;
         m_enEcallState = ECALL_STATE_STANDBY;
         Hmi_ShowEcallState(m_enEcallState);
     }

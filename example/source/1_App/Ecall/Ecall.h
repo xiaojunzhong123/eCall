@@ -25,6 +25,13 @@ typedef enum
     ECALL_TRIGGER_CAN
 } EcallTrigger_t;
 
+#define ECALL_TRIGGER_MASK_MANUAL     0x01U
+#define ECALL_TRIGGER_MASK_AUTO       0x02U
+#define ECALL_TRIGGER_MASK_CAN        0x04U
+#define ECALL_TRIGGER_MASK_ALL        (ECALL_TRIGGER_MASK_MANUAL | \
+                                       ECALL_TRIGGER_MASK_AUTO | \
+                                       ECALL_TRIGGER_MASK_CAN)
+
 typedef struct
 {
     uint8_t trigger_mask;
@@ -36,6 +43,7 @@ typedef struct
 
 void Ecall_Init(void);
 void Ecall_OnTrigger(EcallTrigger_t trigger);
+void Ecall_OnTriggerMask(uint8_t u8TriggerMask);
 void Ecall_OnGnssResult(const EcallMsd_t *msd, uint8_t valid);
 void Ecall_OnGnssTimeout(void);
 void Ecall_OnCallActive(void);

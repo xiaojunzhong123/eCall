@@ -6,10 +6,12 @@
 #define __TASK_MANAGER_H__
 
 #include <stdint.h>
+#include "Ecall.h"
 
 typedef enum
 {
-    ECALL_TASK_EVT_MANUAL_TRIGGER = 0U,
+    ECALL_TASK_EVT_TRIGGER_PENDING = 0U,
+    ECALL_TASK_EVT_MANUAL_TRIGGER,
     ECALL_TASK_EVT_AUTO_TRIGGER,
     ECALL_TASK_EVT_CAN_TRIGGER,
     ECALL_TASK_EVT_GNSS_READY,
@@ -21,5 +23,6 @@ typedef enum
 
 void TaskManager_Start(void);
 void EcallTask_PostEvent(EcallTaskEvent_t enEvent);
+void EcallTask_RequestTrigger(EcallTrigger_t enTrigger);
 
 #endif
