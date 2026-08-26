@@ -360,6 +360,14 @@
                     <state>$PROJ_DIR$\..\source\5_Mcal\Gpio</state>
                     <state>$PROJ_DIR$\..\source\2_Rte</state>
                     <state>$PROJ_DIR$\..\source\5_Mcal\Uart</state>
+                    <state>D:\TBOX\KX2026_021_TBOX\example\source\1_App\Ecall</state>
+                    <state>D:\TBOX\KX2026_021_TBOX\example\source\1_App\Hmi</state>
+                    <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\CanService</state>
+                    <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\GnssService</state>
+                    <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\ModemService</state>
+                    <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\MsgIF</state>
+                    <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\PowerService</state>
+                    <state>D:\TBOX\KX2026_021_TBOX\example\source\4_System\Task</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -663,7 +671,7 @@
                 </option>
                 <option>
                     <name>OOCOutputFile</name>
-                    <state>HC32A4A8RITJ.hex</state>
+                    <state>KX2026_021_TBOX.hex</state>
                 </option>
                 <option>
                     <name>OOCCommandLineProducer</name>
@@ -2302,6 +2310,12 @@
         <name>source</name>
         <group>
             <name>1_App</name>
+            <file>
+                <name>$PROJ_DIR$\..\source\1_App\Ecall\Ecall.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\source\1_App\Hmi\Hmi.c</name>
+            </file>
         </group>
         <group>
             <name>2_Rte</name>
@@ -2320,6 +2334,18 @@
         </group>
         <group>
             <name>3_Bsw</name>
+            <group>
+                <name>CanService</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\CanService\CanService.c</name>
+                </file>
+            </group>
+            <group>
+                <name>GnssService</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\GnssService\GnssService.c</name>
+                </file>
+            </group>
             <group>
                 <name>Midwares</name>
                 <group>
@@ -2375,6 +2401,12 @@
                 </group>
             </group>
             <group>
+                <name>ModemService</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemService.c</name>
+                </file>
+            </group>
+            <group>
                 <name>MsgIF</name>
                 <file>
                     <name>$PROJ_DIR$\..\source\3_Bsw\MsgIF\MsgIF.c</name>
@@ -2389,9 +2421,42 @@
                     <name>$PROJ_DIR$\..\source\3_Bsw\MsgIF\MsgIF_Cfg.h</name>
                 </file>
             </group>
+            <group>
+                <name>PowerService</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\PowerService\PowerService.c</name>
+                </file>
+            </group>
         </group>
         <group>
             <name>4_System</name>
+            <group>
+                <name>Task</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\4_System\Task\AppTask.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\4_System\Task\CanTask.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\4_System\Task\EcallTask.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\4_System\Task\GnssTask.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\4_System\Task\ModemTask.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\4_System\Task\MonitoringTask.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\4_System\Task\PowTask.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\4_System\Task\TaskManager.c</name>
+                </file>
+            </group>
         </group>
         <group>
             <name>5_Mcal</name>

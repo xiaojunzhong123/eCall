@@ -49,7 +49,7 @@ void Hmi_Log(const char *pcText)
         u8Length++;
     }
 
-    taskENTER_CRITICAL();
+    portENTER_CRITICAL();
     if (m_u8LogCount >= HMI_LOG_SLOT_COUNT)
     {
         m_u16DropCount++;
@@ -71,7 +71,29 @@ void Hmi_Log(const char *pcText)
         }
         m_u8LogCount++;
     }
-    taskEXIT_CRITICAL();
+    portEXIT_CRITICAL();
+}
+
+void Hmi_LogWithPrefix(const char *pcPrefix, const char *pcText)
+{
+    uint8_t au8Text[HMI_LOG_SLOT_LENGTH];
+    uint8_t u8Index = 0U;
+
+    if ((pcPrefix == 0) || (pcText == 0))
+    {
+        return;
+    }
+
+    while ((*pcPrefix != '\0') && (u8Index < (HMI_LOG_SLOT_LENGTH - 1U)))
+    {
+        au8Text[u8Index++] = (uint8_t)*pcPrefix++;
+    }
+    while ((*pcText != '\0') && (u8Index < (HMI_LOG_SLOT_LENGTH - 1U)))
+    {
+        au8Text[u8Index++] = (uint8_t)*pcText++;
+    }
+    au8Text[u8Index] = '\0';
+    Hmi_Log((const char *)au8Text);
 }
 
 void Hmi_Process(void)
@@ -80,7 +102,7 @@ void Hmi_Process(void)
     uint8_t u8Length = 0U;
     uint8_t u8Index;
 
-    taskENTER_CRITICAL();
+    portENTER_CRITICAL();
     if (m_u8LogCount != 0U)
     {
         u8Length = m_astLogSlot[m_u8ReadIndex].u8Length;
@@ -97,7 +119,7 @@ void Hmi_Process(void)
         }
         m_u8LogCount--;
     }
-    taskEXIT_CRITICAL();
+    portEXIT_CRITICAL();
 
     if (u8Length != 0U)
     {
@@ -107,9 +129,9 @@ void Hmi_Process(void)
 
 void Hmi_ShowTaskStarted(const char *pcTaskName)
 {
+#if (HMI_LOG_TASK_ENABLE != 0U)
     uint8_t au8Text[HMI_LOG_SLOT_LENGTH];
     uint8_t u8Index = 0U;
-    const char *pcPrefix = "[TASK] ";
     const char *pcSuffix = " started\r\n";
 
     if (pcTaskName == 0)
@@ -117,10 +139,6 @@ void Hmi_ShowTaskStarted(const char *pcTaskName)
         return;
     }
 
-    while ((*pcPrefix != '\0') && (u8Index < (HMI_LOG_SLOT_LENGTH - 1U)))
-    {
-        au8Text[u8Index++] = (uint8_t)*pcPrefix++;
-    }
     while ((*pcTaskName != '\0') && (u8Index < (HMI_LOG_SLOT_LENGTH - 1U)))
     {
         au8Text[u8Index++] = (uint8_t)*pcTaskName++;
@@ -130,43 +148,50 @@ void Hmi_ShowTaskStarted(const char *pcTaskName)
         au8Text[u8Index++] = (uint8_t)*pcSuffix++;
     }
     au8Text[u8Index] = '\0';
-    Hmi_Log((const char *)au8Text);
+    HMI_LOG_TASK((const char *)au8Text);
+#else
+    (void)pcTaskName;
+#endif
 }
 
 void Hmi_ShowEcallState(EcallState_t enState)
 {
+#if (HMI_LOG_ECALL_ENABLE != 0U)
     if (enState == ECALL_STATE_STANDBY)
     {
-        Hmi_ShowText("[ECALL] STANDBY\r\n");
+        HMI_LOG_ECALL("STANDBY\r\n");
     }
     else if (enState == ECALL_STATE_WAIT_GNSS)
     {
-        Hmi_ShowText("[ECALL] WAIT_GNSS\r\n");
+        HMI_LOG_ECALL("WAIT_GNSS\r\n");
     }
     else if (enState == ECALL_STATE_BUILD_MSD)
     {
-        Hmi_ShowText("[ECALL] BUILD_MSD\r\n");
+        HMI_LOG_ECALL("BUILD_MSD\r\n");
     }
     else if (enState == ECALL_STATE_WAIT_CALL_ACTIVE)
     {
-        Hmi_ShowText("[ECALL] WAIT_CALL_ACTIVE\r\n");
+        HMI_LOG_ECALL("WAIT_CALL_ACTIVE\r\n");
     }
     else if (enState == ECALL_STATE_IN_CALL)
     {
-        Hmi_ShowText("[ECALL] IN_CALL\r\n");
+        HMI_LOG_ECALL("IN_CALL\r\n");
     }
     else if (enState == ECALL_STATE_COMPLETE)
     {
-        Hmi_ShowText("[ECALL] COMPLETE\r\n");
+        HMI_LOG_ECALL("COMPLETE\r\n");
     }
     else if (enState == ECALL_STATE_FAILED)
     {
-        Hmi_ShowText("[ECALL] FAILED\r\n");
+        HMI_LOG_ECALL("FAILED\r\n");
     }
     else
     {
-        Hmi_ShowText("[ECALL] UNKNOWN\r\n");
+        HMI_LOG_ECALL("UNKNOWN\r\n");
     }
+#else
+    (void)enState;
+#endif
 }
 
 void Hmi_ShowText(const char *pcText)

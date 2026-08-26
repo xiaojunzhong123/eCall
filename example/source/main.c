@@ -28,6 +28,7 @@
 //#include <stdlib.h>
 #include "Gpio.h"
 #include "cmsis_os.h"
+#include "TaskManager.h"
 /*******************************************************************************
  * Local type definitions ('typedef')
  ******************************************************************************/
@@ -96,12 +97,13 @@ int32_t main(void)
     LL_PERIPH_WE(0xff);
     Uart_Init();
     (void)SysTick_Init(1000U);
-    osThreadDef(Thread1, Thread1Handle, osPriorityLow, 0, configMINIMAL_STACK_SIZE * 5);
-    osThreadCreate(osThread(Thread1), NULL);
-    osThreadDef(Thread2, Thread2Handle, osPriorityLow, 0, configMINIMAL_STACK_SIZE * 5);
-    osThreadCreate(osThread(Thread2), NULL);
-    osThreadDef(Thread3, Thread3Handle, osPriorityLow, 0, configMINIMAL_STACK_SIZE * 5);
-    osThreadCreate(osThread(Thread3), NULL);
+    // osThreadDef(Thread1, Thread1Handle, osPriorityLow, 0, configMINIMAL_STACK_SIZE * 5);
+    // osThreadCreate(osThread(Thread1), NULL);
+    // osThreadDef(Thread2, Thread2Handle, osPriorityLow, 0, configMINIMAL_STACK_SIZE * 5);
+    // osThreadCreate(osThread(Thread2), NULL);
+    // osThreadDef(Thread3, Thread3Handle, osPriorityLow, 0, configMINIMAL_STACK_SIZE * 5);
+    // osThreadCreate(osThread(Thread3), NULL);
+    TaskManager_Start();
     osKernelStart();
     while (1) {
     }

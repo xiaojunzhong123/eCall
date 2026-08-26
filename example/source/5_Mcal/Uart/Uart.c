@@ -77,7 +77,7 @@ void Uart_Init(void)
 
     (void)USART_UART_StructInit(&stcUartInit);
     stcUartInit.u32ClockDiv      = USART_CLK_DIV4;
-    stcUartInit.u32Baudrate      = 460800;
+    stcUartInit.u32Baudrate      = 230400;//460800;
     stcUartInit.u32OverSampleBit = USART_OVER_SAMPLE_8BIT;
     if (LL_OK != USART_UART_Init(CM_USART4, &stcUartInit, NULL))
     {
