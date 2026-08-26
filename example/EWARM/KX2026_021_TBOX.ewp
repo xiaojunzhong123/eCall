@@ -368,6 +368,7 @@
                     <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\MsgIF</state>
                     <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\PowerService</state>
                     <state>D:\TBOX\KX2026_021_TBOX\example\source\4_System\Task</state>
+                    <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\InputService</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -2344,6 +2345,12 @@
                 <name>GnssService</name>
                 <file>
                     <name>$PROJ_DIR$\..\source\3_Bsw\GnssService\GnssService.c</name>
+                </file>
+            </group>
+            <group>
+                <name>InputService</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\InputService\InputService.c</name>
                 </file>
             </group>
             <group>
