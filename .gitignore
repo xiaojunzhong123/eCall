@@ -16,3 +16,8 @@ example/MDK/*.uvoptx
 *.bak
 *.log
 ~$*.docx
+
+# Local-only project rules and design documents
+/AGENTS.md
+/README.md
+/docs/
