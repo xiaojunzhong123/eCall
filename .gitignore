@@ -1,0 +1,18 @@
+# IAR Embedded Workbench build outputs and per-user state
+example/EWARM/output/
+example/EWARM/settings/
+example/EWARM/*.dep
+example/EWARM/*.ewd
+example/EWARM/*.ewt
+
+# Keil µVision build outputs and per-user state
+example/MDK/Objects/
+example/MDK/Listing/
+example/MDK/*.uvgui.*
+example/MDK/*.uvoptx
+
+# Common local temporary files
+*.tmp
+*.bak
+*.log
+~$*.docx
