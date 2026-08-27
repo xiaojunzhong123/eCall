@@ -6,6 +6,7 @@
   * Data    :2026.08.27
 *******************************************************/
 #include "cmsis_os.h"
+#include <string.h>
 #include "Hmi.h"
 #include "ModemPort.h"
 #include "Uart.h"
@@ -20,17 +21,53 @@ typedef struct
     uint32_t u32TimeoutMs;
 } ModemPortCommand_t;
 
-static ModemPortCommand_t m_astCommandQueue[MODEM_PORT_QUEUE_LENGTH];
-static ModemPortCommand_t m_stActiveCommand;
-static uint8_t m_au8Line[MODEM_PORT_LINE_LENGTH];
-static uint8_t m_u8QueueReadIndex = 0U;
-static uint8_t m_u8QueueWriteIndex = 0U;
-static uint8_t m_u8QueueCount = 0U;
-static uint8_t m_u8LineLength = 0U;
-static uint8_t m_u8CommandActive = 0U;
-static uint8_t m_u8Failure = 0U;
-static uint32_t m_u32CommandStartMs = 0U;
-static ModemPortResult_t m_enLastResult = MODEM_PORT_RESULT_IDLE;
+typedef struct
+{
+    ModemPortCommand_t astCommandQueue[MODEM_PORT_QUEUE_LENGTH];
+    ModemPortCommand_t stActiveCommand;
+    uint8_t au8Line[MODEM_PORT_LINE_LENGTH];
+    uint8_t u8ReadIndex;
+    uint8_t u8WriteIndex;
+    uint8_t u8Count;
+    uint8_t u8Active;
+    uint8_t u8LineLength;
+    uint32_t u32StartMs;
+} ModemPortRuntime_t;
+
+typedef struct
+{
+    ModemPortResult_t enLastResult;
+    uint8_t u8HasFailure;
+    char acLastMatchedResponse[MODEM_PORT_LINE_LENGTH];
+} ModemPortStatus_t;
+
+static ModemPortRuntime_t m_stModemPortRuntime;
+static ModemPortStatus_t m_stModemPortStatus;
+
+/*******************************************************
+  * Name    :ModemPort_CopyMatchedResponse
+  * Author  :LoH
+  * Function:Store one matched modem response line for service-level parsing.
+  * Version :V1.0.0
+  * Data    :2026.08.27
+*******************************************************/
+static void ModemPort_CopyMatchedResponse(const char *pcLine)
+{
+    uint8_t u8Index = 0U;
+
+    if (pcLine == 0)
+    {
+        m_stModemPortStatus.acLastMatchedResponse[0] = '\0';
+        return;
+    }
+
+    while ((pcLine[u8Index] != '\0') && (u8Index < (MODEM_PORT_LINE_LENGTH - 1U)))
+    {
+        m_stModemPortStatus.acLastMatchedResponse[u8Index] = pcLine[u8Index];
+        u8Index++;
+    }
+    m_stModemPortStatus.acLastMatchedResponse[u8Index] = '\0';
+}
 
 /*******************************************************
   * Name    :ModemPort_Contains
@@ -75,11 +112,11 @@ static uint8_t ModemPort_Contains(const char *pcText, const char *pcToken)
 *******************************************************/
 static void ModemPort_FinishActiveCommand(ModemPortResult_t enResult)
 {
-    m_enLastResult = enResult;
-    m_u8CommandActive = 0U;
+    m_stModemPortStatus.enLastResult = enResult;
+    m_stModemPortRuntime.u8Active = 0U;
     if (enResult != MODEM_PORT_RESULT_OK)
     {
-        m_u8Failure = 1U;
+        m_stModemPortStatus.u8HasFailure = 1U;
     }
 }
 
@@ -94,30 +131,36 @@ static void ModemPort_StartNextCommand(void)
 {
     uint8_t u8Length = 0U;
 
-    if ((m_u8CommandActive != 0U) || (m_u8QueueCount == 0U) || (m_u8Failure != 0U))
+    if ((m_stModemPortRuntime.u8Active != 0U)
+        || (m_stModemPortRuntime.u8Count == 0U)
+        || (m_stModemPortStatus.u8HasFailure != 0U))
     {
         return;
     }
-    m_stActiveCommand = m_astCommandQueue[m_u8QueueReadIndex];
-    m_u8QueueReadIndex++;
-    if (m_u8QueueReadIndex >= MODEM_PORT_QUEUE_LENGTH)
+    m_stModemPortRuntime.stActiveCommand =
+        m_stModemPortRuntime.astCommandQueue[m_stModemPortRuntime.u8ReadIndex];
+    m_stModemPortRuntime.u8ReadIndex++;
+    if (m_stModemPortRuntime.u8ReadIndex >= MODEM_PORT_QUEUE_LENGTH)
     {
-        m_u8QueueReadIndex = 0U;
+        m_stModemPortRuntime.u8ReadIndex = 0U;
     }
-    m_u8QueueCount--;
-    while ((m_stActiveCommand.pcCommand[u8Length] != '\0') && (u8Length < 255U))
+    m_stModemPortRuntime.u8Count--;
+    while ((m_stModemPortRuntime.stActiveCommand.pcCommand[u8Length] != '\0')
+           && (u8Length < 255U))
     {
         u8Length++;
     }
-    if ((u8Length == 0U) || (m_stActiveCommand.pcCommand[u8Length] != '\0')
-        || (Uart_TxData((uint8_t *)m_stActiveCommand.pcCommand, u8Length) == FALSE))
+    if ((u8Length == 0U)
+        || (m_stModemPortRuntime.stActiveCommand.pcCommand[u8Length] != '\0')
+        || (Uart_TxData((uint8_t *)m_stModemPortRuntime.stActiveCommand.pcCommand,
+                        u8Length) == FALSE))
     {
         ModemPort_FinishActiveCommand(MODEM_PORT_RESULT_ERROR);
         return;
     }
-    Hmi_LogWithPrefix("[MODEM TX] ", m_stActiveCommand.pcCommand);
-    m_u32CommandStartMs = osKernelSysTick();
-    m_u8CommandActive = 1U;
+    Hmi_LogWithPrefix("[MODEM TX] ", m_stModemPortRuntime.stActiveCommand.pcCommand);
+    m_stModemPortRuntime.u32StartMs = osKernelSysTick();
+    m_stModemPortRuntime.u8Active = 1U;
 }
 
 /*******************************************************
@@ -132,12 +175,13 @@ static void ModemPort_HandleResponseLine(const char *pcLine)
     Hmi_LogWithPrefix("[MODEM RX] ", pcLine);
     Hmi_Log("\r\n");
 
-    if (m_u8CommandActive == 0U)
+    if (m_stModemPortRuntime.u8Active == 0U)
     {
         return;
     }
-    if (ModemPort_Contains(pcLine, m_stActiveCommand.pcExpected) != 0U)
+    if (ModemPort_Contains(pcLine, m_stModemPortRuntime.stActiveCommand.pcExpected) != 0U)
     {
+        ModemPort_CopyMatchedResponse(pcLine);
         ModemPort_FinishActiveCommand(MODEM_PORT_RESULT_OK);
     }
     else if ((ModemPort_Contains(pcLine, "ERROR") != 0U)
@@ -157,13 +201,9 @@ static void ModemPort_HandleResponseLine(const char *pcLine)
 *******************************************************/
 void ModemPort_Init(void)
 {
-    m_u8QueueReadIndex = 0U;
-    m_u8QueueWriteIndex = 0U;
-    m_u8QueueCount = 0U;
-    m_u8LineLength = 0U;
-    m_u8CommandActive = 0U;
-    m_u8Failure = 0U;
-    m_enLastResult = MODEM_PORT_RESULT_IDLE;
+    (void)memset(&m_stModemPortRuntime, 0, sizeof(m_stModemPortRuntime));
+    (void)memset(&m_stModemPortStatus, 0, sizeof(m_stModemPortStatus));
+    m_stModemPortStatus.enLastResult = MODEM_PORT_RESULT_IDLE;
 }
 
 /*******************************************************
@@ -175,20 +215,23 @@ void ModemPort_Init(void)
 *******************************************************/
 uint8_t ModemPort_QueueCommand(const char *pcCommand, const char *pcExpected, uint32_t u32TimeoutMs)
 {
-    if ((pcCommand == 0) || (pcExpected == 0) || (u32TimeoutMs == 0U)
-        || (m_u8QueueCount >= MODEM_PORT_QUEUE_LENGTH) || (m_u8Failure != 0U))
+    if ((pcCommand == 0)
+        || (pcExpected == 0)
+        || (u32TimeoutMs == 0U)
+        || (m_stModemPortRuntime.u8Count >= MODEM_PORT_QUEUE_LENGTH)
+        || (m_stModemPortStatus.u8HasFailure != 0U))
     {
         return 0U;
     }
-    m_astCommandQueue[m_u8QueueWriteIndex].pcCommand = pcCommand;
-    m_astCommandQueue[m_u8QueueWriteIndex].pcExpected = pcExpected;
-    m_astCommandQueue[m_u8QueueWriteIndex].u32TimeoutMs = u32TimeoutMs;
-    m_u8QueueWriteIndex++;
-    if (m_u8QueueWriteIndex >= MODEM_PORT_QUEUE_LENGTH)
+    m_stModemPortRuntime.astCommandQueue[m_stModemPortRuntime.u8WriteIndex].pcCommand = pcCommand;
+    m_stModemPortRuntime.astCommandQueue[m_stModemPortRuntime.u8WriteIndex].pcExpected = pcExpected;
+    m_stModemPortRuntime.astCommandQueue[m_stModemPortRuntime.u8WriteIndex].u32TimeoutMs = u32TimeoutMs;
+    m_stModemPortRuntime.u8WriteIndex++;
+    if (m_stModemPortRuntime.u8WriteIndex >= MODEM_PORT_QUEUE_LENGTH)
     {
-        m_u8QueueWriteIndex = 0U;
+        m_stModemPortRuntime.u8WriteIndex = 0U;
     }
-    m_u8QueueCount++;
+    m_stModemPortRuntime.u8Count++;
     return 1U;
 }
 
@@ -203,7 +246,7 @@ void ModemPort_Process(void)
 {
     uint8_t u8Data;
 
-    if (m_u8CommandActive == 0U)
+    if (m_stModemPortRuntime.u8Active == 0U)
     {
         ModemPort_StartNextCommand();
     }
@@ -215,28 +258,29 @@ void ModemPort_Process(void)
         }
         if (u8Data == '\n')
         {
-            if (m_u8LineLength != 0U)
+            if (m_stModemPortRuntime.u8LineLength != 0U)
             {
-                m_au8Line[m_u8LineLength] = '\0';
-                ModemPort_HandleResponseLine((const char *)m_au8Line);
-                m_u8LineLength = 0U;
+                m_stModemPortRuntime.au8Line[m_stModemPortRuntime.u8LineLength] = '\0';
+                ModemPort_HandleResponseLine((const char *)m_stModemPortRuntime.au8Line);
+                m_stModemPortRuntime.u8LineLength = 0U;
             }
         }
-        else if (m_u8LineLength < (MODEM_PORT_LINE_LENGTH - 1U))
+        else if (m_stModemPortRuntime.u8LineLength < (MODEM_PORT_LINE_LENGTH - 1U))
         {
-            m_au8Line[m_u8LineLength] = u8Data;
-            m_u8LineLength++;
+            m_stModemPortRuntime.au8Line[m_stModemPortRuntime.u8LineLength] = u8Data;
+            m_stModemPortRuntime.u8LineLength++;
         }
         else
         {
-            m_u8LineLength = 0U;
-            m_u8Failure = 1U;
-            m_enLastResult = MODEM_PORT_RESULT_ERROR;
+            m_stModemPortRuntime.u8LineLength = 0U;
+            m_stModemPortStatus.u8HasFailure = 1U;
+            m_stModemPortStatus.enLastResult = MODEM_PORT_RESULT_ERROR;
             HMI_LOG_MODEM("RX_LINE_OVERFLOW\r\n");
         }
     }
-    if ((m_u8CommandActive != 0U)
-        && ((osKernelSysTick() - m_u32CommandStartMs) >= m_stActiveCommand.u32TimeoutMs))
+    if ((m_stModemPortRuntime.u8Active != 0U)
+        && ((osKernelSysTick() - m_stModemPortRuntime.u32StartMs)
+            >= m_stModemPortRuntime.stActiveCommand.u32TimeoutMs))
     {
         HMI_LOG_MODEM("AT_TIMEOUT\r\n");
         ModemPort_FinishActiveCommand(MODEM_PORT_RESULT_TIMEOUT);
@@ -245,27 +289,41 @@ void ModemPort_Process(void)
 
 uint8_t ModemPort_IsIdle(void)
 {
-    return ((m_u8CommandActive == 0U) && (m_u8QueueCount == 0U)) ? 1U : 0U;
+    return ((m_stModemPortRuntime.u8Active == 0U)
+            && (m_stModemPortRuntime.u8Count == 0U)) ? 1U : 0U;
 }
 
 uint8_t ModemPort_HasFailure(void)
 {
-    return m_u8Failure;
+    return m_stModemPortStatus.u8HasFailure;
 }
 
 ModemPortResult_t ModemPort_GetLastResult(void)
 {
-    return m_enLastResult;
+    return m_stModemPortStatus.enLastResult;
+}
+
+/*******************************************************
+  * Name    :ModemPort_GetLastMatchedResponse
+  * Author  :LoH
+  * Function:Return the response line that completed the latest command.
+  * Version :V1.0.0
+  * Data    :2026.08.27
+*******************************************************/
+const char *ModemPort_GetLastMatchedResponse(void)
+{
+    return m_stModemPortStatus.acLastMatchedResponse;
 }
 
 void ModemPort_ClearFailure(void)
 {
-    if (m_u8CommandActive == 0U)
+    if (m_stModemPortRuntime.u8Active == 0U)
     {
-        m_u8QueueReadIndex = 0U;
-        m_u8QueueWriteIndex = 0U;
-        m_u8QueueCount = 0U;
-        m_u8Failure = 0U;
-        m_enLastResult = MODEM_PORT_RESULT_IDLE;
+        m_stModemPortRuntime.u8ReadIndex = 0U;
+        m_stModemPortRuntime.u8WriteIndex = 0U;
+        m_stModemPortRuntime.u8Count = 0U;
+        m_stModemPortStatus.u8HasFailure = 0U;
+        m_stModemPortStatus.enLastResult = MODEM_PORT_RESULT_IDLE;
+        m_stModemPortStatus.acLastMatchedResponse[0] = '\0';
     }
 }

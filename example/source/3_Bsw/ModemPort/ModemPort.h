@@ -24,6 +24,8 @@ void ModemPort_Process(void);
 uint8_t ModemPort_IsIdle(void);
 uint8_t ModemPort_HasFailure(void);
 ModemPortResult_t ModemPort_GetLastResult(void);
+/* Return the response line that completed the latest command. */
+const char *ModemPort_GetLastMatchedResponse(void);
 void ModemPort_ClearFailure(void);
 
 #endif

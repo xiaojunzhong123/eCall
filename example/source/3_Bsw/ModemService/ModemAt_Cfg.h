@@ -8,27 +8,35 @@
 #ifndef __MODEM_AT_CFG_H__
 #define __MODEM_AT_CFG_H__
 
-/* ML307A AT commands and response tokens. */
+/* AC7600 AT commands and response tokens. */
 #define MODEM_AT_CMD_BASIC                      "AT\r\n"
+#define MODEM_AT_CMD_ECHO_OFF                   "ATE0\r\n"
 #define MODEM_AT_CMD_SIM_STATUS                 "AT+CPIN?\r\n"
 #define MODEM_AT_CMD_SIGNAL_QUALITY             "AT+CSQ\r\n"
 #define MODEM_AT_CMD_CIRCUIT_REGISTRATION       "AT+CEREG?\r\n"
-#define MODEM_AT_CMD_TCP_KEEPALIVE_FORMAT       "AT+MIPTKA=%u,1,30,30,3\r\n"
-#define MODEM_AT_CMD_HEX_ENCODING_FORMAT        "AT+MIPCFG=\"encoding\",%u,1,0\r\n"
-#define MODEM_AT_CMD_TCP_OPEN_FORMAT            "AT+MIPOPEN=%u,\"TCP\",\"%s\",%u\r\n"
-#define MODEM_AT_CMD_SEND_HEX_FORMAT            "AT+MIPSEND=%u,%u,\"%s\",0,1,0\r\n"
+#define MODEM_AT_CMD_PDP_OPEN                   "AT+NETOPEN\r\n"
+#define MODEM_AT_CMD_TCP_KEEPALIVE_FORMAT       "AT+CTCPKA=%u,%u,%u,%u\r\n"
+#define MODEM_AT_CMD_TCP_DATA_ECHO_OFF          "AT+CIPCFG=\"DATAECHO\",OFF\r\n"
+#define MODEM_AT_CMD_TCP_OPEN_FORMAT            "AT+CIPOPEN=%u,\"TCP\",\"%s\",%u\r\n"
+#define MODEM_AT_CMD_TCP_SEND_FORMAT            "AT+CIPSEND=%u,%u\r\n"
+#define MODEM_AT_CMD_TCP_CLOSE_FORMAT           "AT+CIPCLOSE=%u\r\n"
+#define MODEM_AT_CMD_PDP_CLOSE                  "AT+NETCLOSE\r\n"
 
 /* Dynamic commands must be assembled with snprintf and these format macros. */
 #define MODEM_AT_CMD_DIAL_FORMAT                "ATD%s;\r\n"
 
 /* Common response tokens. Actual URC handling remains module-specific. */
 #define MODEM_AT_RSP_OK                         "OK"
+#define MODEM_AT_RSP_SIM_READY                  "+CPIN: READY"
+#define MODEM_AT_RSP_SIGNAL_QUALITY             "+CSQ:"
+#define MODEM_AT_RSP_NETWORK_REGISTRATION       "+CEREG:"
+#define MODEM_AT_RSP_PDP_OPENED                 "+NETOPEN: 0"
 #define MODEM_AT_RSP_ERROR                      "ERROR"
 #define MODEM_AT_RSP_BUSY                        "BUSY"
 #define MODEM_AT_RSP_NO_CARRIER                  "NO CARRIER"
-#define MODEM_AT_RSP_SEND                        "MIPSEND"
+#define MODEM_AT_RSP_SEND                        "+CIPSEND:"
 
-/* ML307A platform test configuration from the approved bare-metal reference. */
+/* Platform values remain candidates until AC7600 TCP verification completes. */
 #define MODEM_PLATFORM_LINK_ID                  0U
 #define MODEM_PLATFORM_SERVER_IP                "8.137.175.163"
 #define MODEM_PLATFORM_SERVER_PORT              8902U
@@ -44,8 +52,9 @@
 
 /* Timeouts are used by the future ModemPort AT transaction adapter. */
 #define MODEM_AT_CFG_SYNC_TIMEOUT_MS            1000U
-#define MODEM_AT_CFG_SIM_TIMEOUT_MS             1000U
+#define MODEM_AT_CFG_SIM_TIMEOUT_MS             2000U
 #define MODEM_AT_CFG_NETWORK_TIMEOUT_MS         1000U
+#define MODEM_AT_CFG_PDP_OPEN_TIMEOUT_MS        120000U
 #define MODEM_AT_CFG_DIAL_TIMEOUT_MS            30000U
 #define MODEM_AT_CFG_SEND_TIMEOUT_MS            2000U
 #define MODEM_PLATFORM_HEARTBEAT_PERIOD_MS      25000U

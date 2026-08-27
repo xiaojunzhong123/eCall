@@ -29,13 +29,13 @@ static void ModemTask_ShowNetworkState(ModemNetworkState_t enNetworkState)
     {
         HMI_LOG_MODEM("AT_SYNC\r\n");
     }
-    else if (enNetworkState == MODEM_NETWORK_SIM_CHECK)
+    else if (enNetworkState == MODEM_NETWORK_PDP_OPENING)
     {
-        HMI_LOG_MODEM("SIM_CHECK\r\n");
+        HMI_LOG_MODEM("PDP_OPENING\r\n");
     }
-    else if (enNetworkState == MODEM_NETWORK_REGISTERING)
+    else if (enNetworkState == MODEM_NETWORK_PDP_ACTIVE)
     {
-        HMI_LOG_MODEM("NETWORK_REGISTERING\r\n");
+        HMI_LOG_MODEM("PDP_ACTIVE\r\n");
     }
     else if (enNetworkState == MODEM_NETWORK_TCP_CONNECTING)
     {
