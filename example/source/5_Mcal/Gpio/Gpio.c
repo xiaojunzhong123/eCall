@@ -20,6 +20,8 @@ const S_Gpio_Output_Cfg output_cfg_tbl[E_OUTPUT_GPIO_NUM] = {
 S_Gpio_Input_Cfg input_cfg_tbl[E_INPUT_GPIO_NUM] = {
     /* PA0 Wakeup switch: external pull-up, low level is the eCall SOS active state. */
     {E_INPUT_ECALL_SOS_SWITCH, GPIO_PORT_A, GPIO_PIN_00, LOW, 0u, 140u, LOW, PIN_RESET, 0},
+    /* PB7 shares the unused SDIO1_D0 net: board pull-up, low level simulates KL15 ON. */
+    {E_INPUT_KL15_SWITCH, GPIO_PORT_B, GPIO_PIN_07, LOW, 0u, 140u, LOW, PIN_RESET, 0},
 };
 /*-------------function-------------------------------*/
 /*******************************************************

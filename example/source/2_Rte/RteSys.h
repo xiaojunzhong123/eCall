@@ -42,7 +42,14 @@ typedef enum
 
 typedef enum
 {
+    RTE_KL15_OFF = 0U,
+    RTE_KL15_ON
+} RteKl15State_t;
+
+typedef enum
+{
     RTESYS_U8_SOS_SWITCH_STATE = 0U,
+    RTESYS_U8_KL15_STATE,
     RTESYS_U8_TYPE_MAX
 } RteSys_U8_Type;
 /*-------------function port--------------------------*/

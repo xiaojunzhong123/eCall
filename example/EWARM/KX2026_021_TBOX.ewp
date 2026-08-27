@@ -366,6 +366,7 @@
                     <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\CanService</state>
                     <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\GnssService</state>
                     <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\ModemService</state>
+                    <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\ModemPort</state>
                     <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\MsgIF</state>
                     <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\PowerService</state>
                     <state>D:\TBOX\KX2026_021_TBOX\example\source\4_System\Task</state>
@@ -1425,6 +1426,7 @@
                     <state>$PROJ_DIR$/../source</state>
                     <state>$PROJ_DIR$/../../common</state>
                     <state>$PROJ_DIR$\..\source\6_Library\SeggerRtt</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\ModemPort</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -2413,6 +2415,15 @@
                 <name>ModemService</name>
                 <file>
                     <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemService.c</name>
+                </file>
+            </group>
+            <group>
+                <name>ModemPort</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemPort\ModemPort.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemPort\ModemPort.h</name>
                 </file>
             </group>
             <group>

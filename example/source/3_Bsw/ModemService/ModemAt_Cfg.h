@@ -12,7 +12,7 @@
 #define MODEM_AT_CMD_BASIC                      "AT\r\n"
 #define MODEM_AT_CMD_SIM_STATUS                 "AT+CPIN?\r\n"
 #define MODEM_AT_CMD_SIGNAL_QUALITY             "AT+CSQ\r\n"
-#define MODEM_AT_CMD_CIRCUIT_REGISTRATION       "AT+CREG?\r\n"
+#define MODEM_AT_CMD_CIRCUIT_REGISTRATION       "AT+CEREG?\r\n"
 #define MODEM_AT_CMD_TCP_KEEPALIVE_FORMAT       "AT+MIPTKA=%u,1,30,30,3\r\n"
 #define MODEM_AT_CMD_HEX_ENCODING_FORMAT        "AT+MIPCFG=\"encoding\",%u,1,0\r\n"
 #define MODEM_AT_CMD_TCP_OPEN_FORMAT            "AT+MIPOPEN=%u,\"TCP\",\"%s\",%u\r\n"

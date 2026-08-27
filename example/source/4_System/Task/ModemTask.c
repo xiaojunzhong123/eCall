@@ -7,7 +7,9 @@
 *******************************************************/
 #include "cmsis_os.h"
 #include "Hmi.h"
+#include "ModemPort.h"
 #include "ModemService.h"
+#include "RteSys.h"
 #include "TaskManager.h"
 
 /*******************************************************
@@ -70,15 +72,34 @@ static void ModemTask_Entry(void const *argument)
     ModemCallState_t enCurrentState;
     ModemNetworkState_t enLastNetworkState = MODEM_NETWORK_SLEEP;
     ModemNetworkState_t enCurrentNetworkState;
+    RteKl15State_t enLastKl15State = RTE_KL15_OFF;
+    RteKl15State_t enCurrentKl15State;
 
     (void)argument;
     Hmi_ShowTaskStarted("ModemTask");
 
     for (;;)
     {
+        ModemPort_Process();
         ModemService_Process();
         enCurrentState = ModemService_GetCallState();
         enCurrentNetworkState = ModemService_GetNetworkState();
+        enCurrentKl15State = (RteKl15State_t)RteSys_GetU8Sig(RTESYS_U8_KL15_STATE);
+
+        if (enCurrentKl15State != enLastKl15State)
+        {
+            if (enCurrentKl15State == RTE_KL15_ON)
+            {
+                HMI_LOG_MODEM("KL15_ON\r\n");
+                ModemService_RequestNetworkOnline();
+            }
+            else
+            {
+                HMI_LOG_MODEM("KL15_OFF\r\n");
+                ModemService_RequestNetworkSleep();
+            }
+            enLastKl15State = enCurrentKl15State;
+        }
 
         if (enCurrentNetworkState != enLastNetworkState)
         {

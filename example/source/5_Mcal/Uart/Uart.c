@@ -8,7 +8,13 @@
 /*-------------include file---------------------------*/
 #include "Uart_Cfg.h"
 /*-------------variable statement---------------------*/
+#define UART_RX_BUFFER_LENGTH    128U
+
 uint8_t data[50] = { 0 };
+static uint8_t m_au8RxBuffer[UART_RX_BUFFER_LENGTH];
+static volatile uint8_t m_u8RxReadIndex = 0U;
+static volatile uint8_t m_u8RxWriteIndex = 0U;
+static volatile uint16_t m_u16RxOverflowCount = 0U;
 /*-------------Function-------------------------------*/
 
 /*******************************************************
@@ -38,6 +44,21 @@ static void USART4_RxError_IrqCallback(void)
 static void USART4_RxFull_IrqCallback(void)
 {
     uint8_t u8Data = (uint8_t)USART_ReadData(CM_USART4);
+    uint8_t u8NextWriteIndex = m_u8RxWriteIndex + 1U;
+
+    if (u8NextWriteIndex >= UART_RX_BUFFER_LENGTH)
+    {
+        u8NextWriteIndex = 0U;
+    }
+    if (u8NextWriteIndex != m_u8RxReadIndex)
+    {
+        m_au8RxBuffer[m_u8RxWriteIndex] = u8Data;
+        m_u8RxWriteIndex = u8NextWriteIndex;
+    }
+    else
+    {
+        m_u16RxOverflowCount++;
+    }
 }
 
 /*******************************************************
@@ -69,6 +90,10 @@ void Uart_Init(void)
 {
     stc_usart_uart_init_t   stcUartInit;
     stc_irq_signin_config_t stcIrqSigninConfig;
+
+    m_u8RxReadIndex = 0U;
+    m_u8RxWriteIndex = 0U;
+    m_u16RxOverflowCount = 0U;
 
     GPIO_SetFunc(GPIO_PORT_E, GPIO_PIN_06, GPIO_FUNC_32);//TX
     GPIO_SetFunc(GPIO_PORT_D, GPIO_PIN_06, GPIO_FUNC_33);//RX
@@ -141,5 +166,45 @@ Bool Uart_TxData(uint8_t *p_buff, uint8_t len)
 Bool Uart_RxData(uint8_t *p_buff, uint8_t len)
 {
     return TRUE;
+}
+
+/*******************************************************
+  * Name    :Uart_ReadRxData
+  * Author  :LoH
+  * Function:Read available USART4 RX ring-buffer bytes.
+  * Version :V1.0.0
+  * Data    :2026.08.27
+*******************************************************/
+uint8_t Uart_ReadRxData(uint8_t *pu8Buffer, uint8_t u8Length)
+{
+    uint8_t u8ReadLength = 0U;
+
+    if (pu8Buffer == NULL)
+    {
+        return 0U;
+    }
+    while ((u8ReadLength < u8Length) && (m_u8RxReadIndex != m_u8RxWriteIndex))
+    {
+        pu8Buffer[u8ReadLength] = m_au8RxBuffer[m_u8RxReadIndex];
+        m_u8RxReadIndex++;
+        if (m_u8RxReadIndex >= UART_RX_BUFFER_LENGTH)
+        {
+            m_u8RxReadIndex = 0U;
+        }
+        u8ReadLength++;
+    }
+    return u8ReadLength;
+}
+
+/*******************************************************
+  * Name    :Uart_GetRxOverflowCount
+  * Author  :LoH
+  * Function:Return USART4 RX ring-buffer overflow count.
+  * Version :V1.0.0
+  * Data    :2026.08.27
+*******************************************************/
+uint16_t Uart_GetRxOverflowCount(void)
+{
+    return m_u16RxOverflowCount;
 }
 
