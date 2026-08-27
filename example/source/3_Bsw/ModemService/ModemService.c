@@ -6,6 +6,7 @@
   * Data    :2026.08.27
 *******************************************************/
 #include "ModemService.h"
+#include <string.h>
 #include "Hmi.h"
 #include "ModemAt_Cfg.h"
 #include "ModemPort.h"
@@ -25,16 +26,26 @@ typedef enum
     MODEM_PDP_OPEN_STEP_WAIT
 } ModemPdpOpenStep_t;
 
-static ModemCallState_t m_enCallState = MODEM_CALL_IDLE;
-static ModemNetworkState_t m_enNetworkState = MODEM_NETWORK_SLEEP;
-static ModemAtSyncStep_t m_enAtSyncStep = MODEM_AT_SYNC_STEP_QUEUE;
-static ModemPdpOpenStep_t m_enPdpOpenStep = MODEM_PDP_OPEN_STEP_QUEUE;
-static uint16_t m_u16NetworkProcessCount = 0U;
-static uint16_t m_u16CallProcessCount = 0U;
-static uint8_t m_u8EmergencyRequestPending = 0U;
-static uint8_t m_u8NetworkSleepRequested = 0U;
-static uint32_t m_u32NetworkSleepHoldMs = 0U;
-static EcallMsd_t m_stLastMsd;
+typedef struct
+{
+    ModemAtSyncStep_t enAtSyncStep;
+    ModemPdpOpenStep_t enPdpOpenStep;
+    uint16_t u16NetworkProcessCount;
+    uint16_t u16CallProcessCount;
+    uint8_t u8EmergencyRequestPending;
+    uint8_t u8NetworkSleepRequested;
+    uint32_t u32NetworkSleepHoldMs;
+    EcallMsd_t stLastMsd;
+} ModemServiceRuntime_t;
+
+typedef struct
+{
+    ModemCallState_t enCallState;
+    ModemNetworkState_t enNetworkState;
+} ModemServiceStatus_t;
+
+static ModemServiceRuntime_t s_mSvcRun;
+static ModemServiceStatus_t s_mSvcSts;
 
 /*******************************************************
   * Name    :ModemService_IsNetworkRegistered
@@ -73,9 +84,9 @@ static uint8_t ModemService_IsNetworkRegistered(const char *pcResponse)
 *******************************************************/
 static void ModemService_EnterAtSync(void)
 {
-    m_enNetworkState = MODEM_NETWORK_AT_SYNC;
-    m_enAtSyncStep = MODEM_AT_SYNC_STEP_QUEUE;
-    m_u16NetworkProcessCount = 0U;
+    s_mSvcSts.enNetworkState = MODEM_NETWORK_AT_SYNC;
+    s_mSvcRun.enAtSyncStep = MODEM_AT_SYNC_STEP_QUEUE;
+    s_mSvcRun.u16NetworkProcessCount = 0U;
 }
 
 /*******************************************************
@@ -87,9 +98,9 @@ static void ModemService_EnterAtSync(void)
 *******************************************************/
 static void ModemService_EnterPdpOpening(void)
 {
-    m_enNetworkState = MODEM_NETWORK_PDP_OPENING;
-    m_enPdpOpenStep = MODEM_PDP_OPEN_STEP_QUEUE;
-    m_u16NetworkProcessCount = 0U;
+    s_mSvcSts.enNetworkState = MODEM_NETWORK_PDP_OPENING;
+    s_mSvcRun.enPdpOpenStep = MODEM_PDP_OPEN_STEP_QUEUE;
+    s_mSvcRun.u16NetworkProcessCount = 0U;
 }
 
 /*******************************************************
@@ -101,14 +112,14 @@ static void ModemService_EnterPdpOpening(void)
 *******************************************************/
 static void ModemService_EnterNetworkSleep(void)
 {
-    m_enNetworkState = MODEM_NETWORK_SLEEP;
-    m_enAtSyncStep = MODEM_AT_SYNC_STEP_QUEUE;
-    m_enPdpOpenStep = MODEM_PDP_OPEN_STEP_QUEUE;
-    m_u16NetworkProcessCount = 0U;
+    s_mSvcSts.enNetworkState = MODEM_NETWORK_SLEEP;
+    s_mSvcRun.enAtSyncStep = MODEM_AT_SYNC_STEP_QUEUE;
+    s_mSvcRun.enPdpOpenStep = MODEM_PDP_OPEN_STEP_QUEUE;
+    s_mSvcRun.u16NetworkProcessCount = 0U;
 
-    if (m_u8EmergencyRequestPending != 0U)
+    if (s_mSvcRun.u8EmergencyRequestPending != 0U)
     {
-        m_enCallState = MODEM_CALL_FAILED;
+        s_mSvcSts.enCallState = MODEM_CALL_FAILED;
     }
 }
 
@@ -133,7 +144,7 @@ static void ModemService_ProcessSleep(void)
 *******************************************************/
 static void ModemService_ProcessAtSync(void)
 {
-    switch (m_enAtSyncStep)
+    switch (s_mSvcRun.enAtSyncStep)
     {
         case MODEM_AT_SYNC_STEP_QUEUE:
             ModemPort_ClearFailure();
@@ -149,7 +160,7 @@ static void ModemService_ProcessAtSync(void)
                                             MODEM_AT_RSP_NETWORK_REGISTRATION,
                                             MODEM_AT_CFG_NETWORK_TIMEOUT_MS) != 0U))
             {
-                m_enAtSyncStep = MODEM_AT_SYNC_STEP_WAIT;
+                s_mSvcRun.enAtSyncStep = MODEM_AT_SYNC_STEP_WAIT;
             }
             else
             {
@@ -199,14 +210,14 @@ static void ModemService_ProcessAtSync(void)
 *******************************************************/
 static void ModemService_ProcessPdpOpening(void)
 {
-    switch (m_enPdpOpenStep)
+    switch (s_mSvcRun.enPdpOpenStep)
     {
         case MODEM_PDP_OPEN_STEP_QUEUE:
             ModemPort_ClearFailure();
             if (ModemPort_QueueCommand(MODEM_AT_CMD_PDP_OPEN, MODEM_AT_RSP_PDP_OPENED,
                                        MODEM_AT_CFG_PDP_OPEN_TIMEOUT_MS) != 0U)
             {
-                m_enPdpOpenStep = MODEM_PDP_OPEN_STEP_WAIT;
+                s_mSvcRun.enPdpOpenStep = MODEM_PDP_OPEN_STEP_WAIT;
             }
             else
             {
@@ -224,7 +235,7 @@ static void ModemService_ProcessPdpOpening(void)
             else if (ModemPort_IsIdle() != 0U)
             {
                 HMI_LOG_MODEM("PDP_OPENED\r\n");
-                m_enNetworkState = MODEM_NETWORK_PDP_ACTIVE;
+                s_mSvcSts.enNetworkState = MODEM_NETWORK_PDP_ACTIVE;
             }
             else
             {
@@ -284,26 +295,26 @@ static void ModemService_ProcessPlatformRegistering(void)
 *******************************************************/
 static void ModemService_ProcessOnline(void)
 {
-    if (m_u8EmergencyRequestPending != 0U)
+    if (s_mSvcRun.u8EmergencyRequestPending != 0U)
     {
-        m_enNetworkState = MODEM_NETWORK_MSD_UPLOADING;
-        m_u16NetworkProcessCount = 0U;
+        s_mSvcSts.enNetworkState = MODEM_NETWORK_MSD_UPLOADING;
+        s_mSvcRun.u16NetworkProcessCount = 0U;
     }
-    else if ((m_u8NetworkSleepRequested != 0U)
-             && ((m_enCallState == MODEM_CALL_IDLE)
-                 || (m_enCallState == MODEM_CALL_ENDED)
-                 || (m_enCallState == MODEM_CALL_FAILED)))
+    else if ((s_mSvcRun.u8NetworkSleepRequested != 0U)
+             && ((s_mSvcSts.enCallState == MODEM_CALL_IDLE)
+                 || (s_mSvcSts.enCallState == MODEM_CALL_ENDED)
+                 || (s_mSvcSts.enCallState == MODEM_CALL_FAILED)))
     {
-        if (m_u32NetworkSleepHoldMs < MODEM_NETWORK_SLEEP_HOLD_MS)
+        if (s_mSvcRun.u32NetworkSleepHoldMs < MODEM_NETWORK_SLEEP_HOLD_MS)
         {
-            m_u32NetworkSleepHoldMs += MODEM_NETWORK_PROCESS_PERIOD_MS;
+            s_mSvcRun.u32NetworkSleepHoldMs += MODEM_NETWORK_PROCESS_PERIOD_MS;
         }
 
-        if (m_u32NetworkSleepHoldMs >= MODEM_NETWORK_SLEEP_HOLD_MS)
+        if (s_mSvcRun.u32NetworkSleepHoldMs >= MODEM_NETWORK_SLEEP_HOLD_MS)
         {
             HMI_LOG_MODEM("KL15_OFF_SLEEP\r\n");
             ModemService_EnterNetworkSleep();
-            m_u32NetworkSleepHoldMs = 0U;
+            s_mSvcRun.u32NetworkSleepHoldMs = 0U;
         }
     }
     else
@@ -333,22 +344,22 @@ static void ModemService_ProcessMsdUploading(void)
 *******************************************************/
 static void ModemService_ProcessCallState(void)
 {
-    if (m_enCallState == MODEM_CALL_DIALING)
+    if (s_mSvcSts.enCallState == MODEM_CALL_DIALING)
     {
-        m_u16CallProcessCount++;
-        if (m_u16CallProcessCount >= 3U)
+        s_mSvcRun.u16CallProcessCount++;
+        if (s_mSvcRun.u16CallProcessCount >= 3U)
         {
-            m_u16CallProcessCount = 0U;
-            m_enCallState = MODEM_CALL_ACTIVE;
+            s_mSvcRun.u16CallProcessCount = 0U;
+            s_mSvcSts.enCallState = MODEM_CALL_ACTIVE;
         }
     }
-    else if (m_enCallState == MODEM_CALL_ACTIVE)
+    else if (s_mSvcSts.enCallState == MODEM_CALL_ACTIVE)
     {
-        m_u16CallProcessCount++;
-        if (m_u16CallProcessCount >= 10U)
+        s_mSvcRun.u16CallProcessCount++;
+        if (s_mSvcRun.u16CallProcessCount >= 10U)
         {
-            m_u16CallProcessCount = 0U;
-            m_enCallState = MODEM_CALL_ENDED;
+            s_mSvcRun.u16CallProcessCount = 0U;
+            s_mSvcSts.enCallState = MODEM_CALL_ENDED;
         }
     }
     else
@@ -366,15 +377,11 @@ static void ModemService_ProcessCallState(void)
 *******************************************************/
 void ModemService_Init(void)
 {
-    m_enCallState = MODEM_CALL_IDLE;
-    m_enNetworkState = MODEM_NETWORK_SLEEP;
-    m_enAtSyncStep = MODEM_AT_SYNC_STEP_QUEUE;
-    m_enPdpOpenStep = MODEM_PDP_OPEN_STEP_QUEUE;
-    m_u16NetworkProcessCount = 0U;
-    m_u16CallProcessCount = 0U;
-    m_u8EmergencyRequestPending = 0U;
-    m_u8NetworkSleepRequested = 0U;
-    m_u32NetworkSleepHoldMs = 0U;
+    (void)memset(&s_mSvcRun, 0, sizeof(s_mSvcRun));
+    s_mSvcSts.enCallState = MODEM_CALL_IDLE;
+    s_mSvcSts.enNetworkState = MODEM_NETWORK_SLEEP;
+    s_mSvcRun.enAtSyncStep = MODEM_AT_SYNC_STEP_QUEUE;
+    s_mSvcRun.enPdpOpenStep = MODEM_PDP_OPEN_STEP_QUEUE;
     ModemPort_Init();
 }
 
@@ -387,20 +394,21 @@ void ModemService_Init(void)
 *******************************************************/
 void ModemService_RequestEmergencyCall(const EcallMsd_t *pstMsd)
 {
-    if ((pstMsd != 0) && ((m_enCallState == MODEM_CALL_IDLE)
-                          || (m_enCallState == MODEM_CALL_ENDED)
-                          || (m_enCallState == MODEM_CALL_FAILED)))
+    if ((pstMsd != 0)
+        && ((s_mSvcSts.enCallState == MODEM_CALL_IDLE)
+            || (s_mSvcSts.enCallState == MODEM_CALL_ENDED)
+            || (s_mSvcSts.enCallState == MODEM_CALL_FAILED)))
     {
-        m_stLastMsd = *pstMsd;
-        m_u16CallProcessCount = 0U;
-        m_u8EmergencyRequestPending = 1U;
-        m_u8NetworkSleepRequested = 0U;
-        if (m_enNetworkState == MODEM_NETWORK_ONLINE)
+        s_mSvcRun.stLastMsd = *pstMsd;
+        s_mSvcRun.u16CallProcessCount = 0U;
+        s_mSvcRun.u8EmergencyRequestPending = 1U;
+        s_mSvcRun.u8NetworkSleepRequested = 0U;
+        if (s_mSvcSts.enNetworkState == MODEM_NETWORK_ONLINE)
         {
-            m_enNetworkState = MODEM_NETWORK_MSD_UPLOADING;
-            m_u16NetworkProcessCount = 0U;
+            s_mSvcSts.enNetworkState = MODEM_NETWORK_MSD_UPLOADING;
+            s_mSvcRun.u16NetworkProcessCount = 0U;
         }
-        else if (m_enNetworkState == MODEM_NETWORK_SLEEP)
+        else if (s_mSvcSts.enNetworkState == MODEM_NETWORK_SLEEP)
         {
             ModemService_EnterAtSync();
         }
@@ -408,7 +416,7 @@ void ModemService_RequestEmergencyCall(const EcallMsd_t *pstMsd)
         {
             /* Existing network work continues before MSD upload. */
         }
-        m_enCallState = MODEM_CALL_PREPARING;
+        s_mSvcSts.enCallState = MODEM_CALL_PREPARING;
     }
 }
 
@@ -421,10 +429,10 @@ void ModemService_RequestEmergencyCall(const EcallMsd_t *pstMsd)
 *******************************************************/
 void ModemService_RequestNetworkOnline(void)
 {
-    m_u8NetworkSleepRequested = 0U;
-    m_u32NetworkSleepHoldMs = 0U;
+    s_mSvcRun.u8NetworkSleepRequested = 0U;
+    s_mSvcRun.u32NetworkSleepHoldMs = 0U;
 
-    if (m_enNetworkState == MODEM_NETWORK_SLEEP)
+    if (s_mSvcSts.enNetworkState == MODEM_NETWORK_SLEEP)
     {
         ModemService_EnterAtSync();
     }
@@ -439,10 +447,10 @@ void ModemService_RequestNetworkOnline(void)
 *******************************************************/
 void ModemService_RequestNetworkSleep(void)
 {
-    if (m_u8NetworkSleepRequested == 0U)
+    if (s_mSvcRun.u8NetworkSleepRequested == 0U)
     {
-        m_u8NetworkSleepRequested = 1U;
-        m_u32NetworkSleepHoldMs = 0U;
+        s_mSvcRun.u8NetworkSleepRequested = 1U;
+        s_mSvcRun.u32NetworkSleepHoldMs = 0U;
         HMI_LOG_MODEM("KL15_OFF_HOLD\r\n");
     }
 }
@@ -456,7 +464,7 @@ void ModemService_RequestNetworkSleep(void)
 *******************************************************/
 void ModemService_Process(void)
 {
-    switch (m_enNetworkState)
+    switch (s_mSvcSts.enNetworkState)
     {
         case MODEM_NETWORK_SLEEP:
             ModemService_ProcessSleep();
@@ -508,7 +516,7 @@ void ModemService_Process(void)
 *******************************************************/
 ModemCallState_t ModemService_GetCallState(void)
 {
-    return m_enCallState;
+    return s_mSvcSts.enCallState;
 }
 
 /*******************************************************
@@ -520,5 +528,5 @@ ModemCallState_t ModemService_GetCallState(void)
 *******************************************************/
 ModemNetworkState_t ModemService_GetNetworkState(void)
 {
-    return m_enNetworkState;
+    return s_mSvcSts.enNetworkState;
 }
