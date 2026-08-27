@@ -6,9 +6,14 @@
   * Data    :2026.08.26
 *******************************************************/
 #include "ModemService.h"
+#include "ModemAt_Cfg.h"
 
 static ModemCallState_t m_enCallState = MODEM_CALL_IDLE;
-static uint32_t m_u32ProcessCount = 0U;
+static ModemNetworkState_t m_enNetworkState = MODEM_NETWORK_SLEEP;
+static uint16_t m_u16NetworkProcessCount = 0U;
+static uint16_t m_u16CallProcessCount = 0U;
+static uint8_t m_u8EmergencyRequestPending = 0U;
+static uint8_t m_u8NetworkSleepRequested = 0U;
 static EcallMsd_t m_stLastMsd;
 
 /*******************************************************
@@ -21,13 +26,17 @@ static EcallMsd_t m_stLastMsd;
 void ModemService_Init(void)
 {
     m_enCallState = MODEM_CALL_IDLE;
-    m_u32ProcessCount = 0U;
+    m_enNetworkState = MODEM_NETWORK_SLEEP;
+    m_u16NetworkProcessCount = 0U;
+    m_u16CallProcessCount = 0U;
+    m_u8EmergencyRequestPending = 0U;
+    m_u8NetworkSleepRequested = 0U;
 }
 
 /*******************************************************
   * Name    :ModemService_RequestEmergencyCall
   * Author  :LoH
-  * Function:Latch MSD and start mock dialing sequence.
+  * Function:Latch MSD and request mock emergency network service.
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
@@ -38,33 +47,157 @@ void ModemService_RequestEmergencyCall(const EcallMsd_t *pstMsd)
                              (m_enCallState == MODEM_CALL_FAILED)))
     {
         m_stLastMsd = *pstMsd;
-        m_u32ProcessCount = 0U;
-        m_enCallState = MODEM_CALL_DIALING;
+        m_u16CallProcessCount = 0U;
+        m_u8EmergencyRequestPending = 1U;
+        m_u8NetworkSleepRequested = 0U;
+        m_enCallState = MODEM_CALL_PREPARING;
+
+        if (m_enNetworkState == MODEM_NETWORK_ONLINE)
+        {
+            m_enNetworkState = MODEM_NETWORK_MSD_UPLOADING;
+            m_u16NetworkProcessCount = 0U;
+        }
+        else if (m_enNetworkState == MODEM_NETWORK_SLEEP)
+        {
+            m_enNetworkState = MODEM_NETWORK_AT_SYNC;
+            m_u16NetworkProcessCount = 0U;
+        }
     }
+}
+
+/*******************************************************
+  * Name    :ModemService_RequestNetworkOnline
+  * Author  :LoH
+  * Function:Request normal KL15-controlled network online state.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
+void ModemService_RequestNetworkOnline(void)
+{
+    m_u8NetworkSleepRequested = 0U;
+
+    if (m_enNetworkState == MODEM_NETWORK_SLEEP)
+    {
+        m_enNetworkState = MODEM_NETWORK_AT_SYNC;
+        m_u16NetworkProcessCount = 0U;
+    }
+}
+
+/*******************************************************
+  * Name    :ModemService_RequestNetworkSleep
+  * Author  :LoH
+  * Function:Request normal network sleep after pending emergency work.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
+void ModemService_RequestNetworkSleep(void)
+{
+    m_u8NetworkSleepRequested = 1U;
 }
 
 /*******************************************************
   * Name    :ModemService_Process
   * Author  :LoH
-  * Function:Advance mock dialing, active and end states.
+  * Function:Advance mock ML307A network, upload and call states.
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
 void ModemService_Process(void)
 {
+    if (m_enNetworkState == MODEM_NETWORK_AT_SYNC)
+    {
+        m_u16NetworkProcessCount++;
+        if (m_u16NetworkProcessCount >= 1U)
+        {
+            m_u16NetworkProcessCount = 0U;
+            m_enNetworkState = MODEM_NETWORK_SIM_CHECK;
+        }
+    }
+    else if (m_enNetworkState == MODEM_NETWORK_SIM_CHECK)
+    {
+        m_u16NetworkProcessCount++;
+        if (m_u16NetworkProcessCount >= 1U)
+        {
+            m_u16NetworkProcessCount = 0U;
+            m_enNetworkState = MODEM_NETWORK_REGISTERING;
+        }
+    }
+    else if (m_enNetworkState == MODEM_NETWORK_REGISTERING)
+    {
+        m_u16NetworkProcessCount++;
+        if (m_u16NetworkProcessCount >= 2U)
+        {
+            m_u16NetworkProcessCount = 0U;
+            m_enNetworkState = MODEM_NETWORK_TCP_CONNECTING;
+        }
+    }
+    else if (m_enNetworkState == MODEM_NETWORK_TCP_CONNECTING)
+    {
+        m_u16NetworkProcessCount++;
+        if (m_u16NetworkProcessCount >= 2U)
+        {
+            m_u16NetworkProcessCount = 0U;
+            m_enNetworkState = MODEM_NETWORK_PLATFORM_REGISTERING;
+        }
+    }
+    else if (m_enNetworkState == MODEM_NETWORK_PLATFORM_REGISTERING)
+    {
+        m_u16NetworkProcessCount++;
+        if (m_u16NetworkProcessCount >= 1U)
+        {
+            m_u16NetworkProcessCount = 0U;
+            m_enNetworkState = MODEM_NETWORK_ONLINE;
+        }
+    }
+    else if (m_enNetworkState == MODEM_NETWORK_ONLINE)
+    {
+        if (m_u8EmergencyRequestPending != 0U)
+        {
+            m_enNetworkState = MODEM_NETWORK_MSD_UPLOADING;
+            m_u16NetworkProcessCount = 0U;
+        }
+        else if ((m_u8NetworkSleepRequested != 0U)
+                 && ((m_enCallState == MODEM_CALL_IDLE)
+                     || (m_enCallState == MODEM_CALL_ENDED)
+                     || (m_enCallState == MODEM_CALL_FAILED)))
+        {
+            m_enNetworkState = MODEM_NETWORK_SLEEP;
+            m_u16NetworkProcessCount = 0U;
+        }
+        else
+        {
+            /* Future ML307A heartbeat is driven by the ModemTask timer. */
+        }
+    }
+    else if (m_enNetworkState == MODEM_NETWORK_MSD_UPLOADING)
+    {
+        m_u16NetworkProcessCount++;
+        if (m_u16NetworkProcessCount >= 1U)
+        {
+            m_u16NetworkProcessCount = 0U;
+            m_u8EmergencyRequestPending = 0U;
+            m_enCallState = MODEM_CALL_DIALING;
+            m_enNetworkState = MODEM_NETWORK_ONLINE;
+        }
+    }
+    else
+    {
+        /* MODEM_NETWORK_SLEEP waits for KL15 or eCall requests. */
+    }
+
     if (m_enCallState == MODEM_CALL_DIALING)
     {
-        m_u32ProcessCount++;
-        if (m_u32ProcessCount >= 3U)
+        m_u16CallProcessCount++;
+        if (m_u16CallProcessCount >= 3U)
         {
-            m_u32ProcessCount = 0U;
+            m_u16CallProcessCount = 0U;
             m_enCallState = MODEM_CALL_ACTIVE;
         }
     }
     else if (m_enCallState == MODEM_CALL_ACTIVE)
     {
-        m_u32ProcessCount++;
-        if (m_u32ProcessCount >= 10U)
+        m_u16CallProcessCount++;
+        if (m_u16CallProcessCount >= 10U)
         {
             m_enCallState = MODEM_CALL_ENDED;
         }
@@ -85,4 +218,16 @@ void ModemService_Process(void)
 ModemCallState_t ModemService_GetCallState(void)
 {
     return m_enCallState;
+}
+
+/*******************************************************
+  * Name    :ModemService_GetNetworkState
+  * Author  :LoH
+  * Function:Return current modem network state.
+  * Version :V1.0.0
+  * Data    :2026.08.26
+*******************************************************/
+ModemNetworkState_t ModemService_GetNetworkState(void)
+{
+    return m_enNetworkState;
 }

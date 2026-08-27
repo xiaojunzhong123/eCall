@@ -356,6 +356,7 @@
                     <state>$PROJ_DIR$\..\drivers\cmsis\Device\XHSC\hc32a4xx\Include</state>
                     <state>$PROJ_DIR$\..\source</state>
                     <state>$PROJ_DIR$\..\source\6_Library</state>
+                    <state>$PROJ_DIR$\..\source\6_Library\SeggerRtt</state>
                     <state>$PROJ_DIR$\..\source\3_Bsw\Midwares\FreeRTOS\Source\cmsis_rtos</state>
                     <state>$PROJ_DIR$\..\source\5_Mcal\Gpio</state>
                     <state>$PROJ_DIR$\..\source\2_Rte</state>
@@ -1423,6 +1424,7 @@
                     <name>CCIncludePath2</name>
                     <state>$PROJ_DIR$/../source</state>
                     <state>$PROJ_DIR$/../../common</state>
+                    <state>$PROJ_DIR$\..\source\6_Library\SeggerRtt</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -2533,6 +2535,18 @@
             <file>
                 <name>$PROJ_DIR$\..\source\6_Library\Types.h</name>
             </file>
+            <group>
+                <name>SeggerRtt</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\6_Library\SeggerRtt\SEGGER_RTT.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\6_Library\SeggerRtt\SEGGER_RTT.h</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\6_Library\SeggerRtt\SEGGER_RTT_Conf.h</name>
+                </file>
+            </group>
         </group>
         <file>
             <name>$PROJ_DIR$\..\source\main.c</name>

@@ -41,7 +41,6 @@
 /*******************************************************************************
  * Global variable definitions (declared in header file with 'extern')
  ******************************************************************************/
-uint32_t callcnt=0;
 /*******************************************************************************
  * Local function prototypes ('static')
  ******************************************************************************/
@@ -59,16 +58,6 @@ uint32_t callcnt=0;
     SysTick_IncTick();
 
     __DSB();  /* Arm Errata 838869 */
-}
-void Thread3Handle(void const *argument)
-{
-  uint8_t temp[10] = "send ok\r\n";
-    for (;;) {
-      callcnt++;
-      GPIO_SetOutPutTogglePin(E_OUTPUT_LED0);
-      osDelay(1000);
-      Uart_TxData(&temp, 9);
-    }
 }
 void Thread1Handle(void const *argument)
 {
@@ -101,8 +90,6 @@ int32_t main(void)
     osThreadCreate(osThread(Thread1), NULL);
     // osThreadDef(Thread2, Thread2Handle, osPriorityLow, 0, configMINIMAL_STACK_SIZE * 5);
     // osThreadCreate(osThread(Thread2), NULL);
-    // osThreadDef(Thread3, Thread3Handle, osPriorityLow, 0, configMINIMAL_STACK_SIZE * 5);
-    // osThreadCreate(osThread(Thread3), NULL);
     TaskManager_Start();
     osKernelStart();
     while (1) {

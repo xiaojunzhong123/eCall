@@ -8,10 +8,12 @@
 #include "FreeRTOS.h"
 #include "Gpio.h"
 #include "Hmi.h"
-#include "Uart.h"
+#include "SEGGER_RTT.h"
+#include "cmsis_os.h"
 
 #define HMI_LOG_SLOT_COUNT             8U
 #define HMI_LOG_SLOT_LENGTH            64U
+#define HMI_TIMESTAMP_LENGTH            14U
 #define HMI_PROCESS_PERIOD_MS           10U
 #define HMI_CANCEL_WINDOW_LED_PERIOD_MS 500U
 
@@ -19,6 +21,7 @@ typedef struct
 {
     uint8_t au8Text[HMI_LOG_SLOT_LENGTH];
     uint8_t u8Length;
+    uint32_t u32TimestampMs;
 } HmiLogSlot_t;
 
 typedef struct
@@ -38,13 +41,50 @@ static HmiEcallCancelIndicator_t m_stEcallCancelIndicator;
 /*******************************************************
   * Name    :Hmi_Write
   * Author  :LoH
-  * Function:Send one complete log record through UART.
+  * Function:Send one complete log record through J-Link RTT.
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
 static void Hmi_Write(const uint8_t *pu8Text, uint8_t u8Length)
 {
-    (void)Uart_TxData((uint8_t *)pu8Text, u8Length);
+    (void)SEGGER_RTT_Write(0U, pu8Text, (unsigned int)u8Length);
+}
+
+/*******************************************************
+  * Name    :Hmi_WriteTimestamp
+  * Author  :LoH
+  * Function:Format and send one relative log timestamp.
+  * Version :V1.0.0
+  * Data    :2026.08.27
+*******************************************************/
+static void Hmi_WriteTimestamp(uint32_t u32TimestampMs)
+{
+    uint8_t au8Timestamp[HMI_TIMESTAMP_LENGTH];
+    uint32_t u32Seconds;
+    uint32_t u32Milliseconds;
+    uint32_t u32Divisor;
+    uint8_t u8Index;
+
+    u32Seconds = u32TimestampMs / 1000U;
+    u32Milliseconds = u32TimestampMs % 1000U;
+    au8Timestamp[0U] = '[';
+    u32Divisor = 1000000U;
+    u8Index = 1U;
+    while (u8Index < 8U)
+    {
+        au8Timestamp[u8Index] = (uint8_t)('0' + (u32Seconds / u32Divisor));
+        u32Seconds %= u32Divisor;
+        u32Divisor /= 10U;
+        u8Index++;
+    }
+    au8Timestamp[8U] = '.';
+    au8Timestamp[9U] = (uint8_t)('0' + (u32Milliseconds / 100U));
+    u32Milliseconds %= 100U;
+    au8Timestamp[10U] = (uint8_t)('0' + (u32Milliseconds / 10U));
+    au8Timestamp[11U] = (uint8_t)('0' + (u32Milliseconds % 10U));
+    au8Timestamp[12U] = ']';
+    au8Timestamp[13U] = ' ';
+    Hmi_Write(au8Timestamp, HMI_TIMESTAMP_LENGTH);
 }
 
 /*******************************************************
@@ -97,6 +137,7 @@ static void Hmi_ProcessEcallCancelIndicator(void)
 *******************************************************/
 void Hmi_Init(void)
 {
+    SEGGER_RTT_Init();
     m_u8ReadIndex = 0U;
     m_u8WriteIndex = 0U;
     m_u8LogCount = 0U;
@@ -144,6 +185,7 @@ void Hmi_Log(const char *pcText)
         }
         m_astLogSlot[m_u8WriteIndex].au8Text[u8Length] = '\0';
         m_astLogSlot[m_u8WriteIndex].u8Length = u8Length;
+        m_astLogSlot[m_u8WriteIndex].u32TimestampMs = osKernelSysTick();
         m_u8WriteIndex++;
         if (m_u8WriteIndex >= HMI_LOG_SLOT_COUNT)
         {
@@ -195,11 +237,13 @@ void Hmi_Process(void)
     uint8_t au8Text[HMI_LOG_SLOT_LENGTH];
     uint8_t u8Length = 0U;
     uint8_t u8Index;
+    uint32_t u32TimestampMs = 0U;
 
     portENTER_CRITICAL();
     if (m_u8LogCount != 0U)
     {
         u8Length = m_astLogSlot[m_u8ReadIndex].u8Length;
+        u32TimestampMs = m_astLogSlot[m_u8ReadIndex].u32TimestampMs;
         u8Index = 0U;
         while (u8Index < u8Length)
         {
@@ -217,6 +261,7 @@ void Hmi_Process(void)
 
     if (u8Length != 0U)
     {
+        Hmi_WriteTimestamp(u32TimestampMs);
         Hmi_Write(au8Text, u8Length);
     }
     Hmi_ProcessEcallCancelIndicator();
