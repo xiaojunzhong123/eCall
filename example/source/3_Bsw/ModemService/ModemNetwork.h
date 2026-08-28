@@ -16,8 +16,10 @@ void ModemNetwork_Init(void);
 void ModemNetwork_Reset(void);
 /* Start AT synchronization, PDP activation and TCP connection. */
 void ModemNetwork_Start(void);
-/* Process one AC7600 network workflow step. */
-void ModemNetwork_Process(void);
+/* Process one AC7600 network workflow step; recovery is inhibited while voice owns the AT port. */
+void ModemNetwork_Process(uint8_t u8RecoveryAllowed);
+/* Return and clear the transport-recovery-started event. */
+uint8_t ModemNetwork_TakeTransportRecoveryStarted(void);
 /* Return and clear the TCP-connected event. */
 uint8_t ModemNetwork_TakeTcpConnected(void);
 /* Return and clear the network-failed event. */

@@ -32,7 +32,7 @@ flowchart LR
 ```text
 ModemTask
   -> ModemService       网络启动、平台活动、休眠和通话的顶层编排
-       -> ModemNetwork  AT 同步、PDP 与 TCP 建连
+       -> ModemNetwork  AT 同步、PDP、TCP 建连与传输断链恢复
        -> ModemPlatform 注册、在线收发、心跳与 MSD 上传的私有状态机
        -> ModemCall     独立通话状态机
 ModemNetwork / ModemPlatform / ModemCall
@@ -43,6 +43,11 @@ ModemNetwork / ModemPlatform / ModemCall
 完全由 `ModemNetwork` 私有维护。TCP 建连后，`ModemPlatform` 私有维护
 `REGISTERING -> ONLINE -> MSD_UPLOADING -> ONLINE`；服务层只用稳定在线查询决定休眠，
 并且只把平台失败事件提升为顶层状态变化。
+
+`ModemPort` 只把 `+IPCLOSE` 与 `+CGEV: ... PDN DEACT ...` 保存为原始传输事件；仅 `ModemNetwork`
+消费这些事件、等待当前 AT 事务空闲后从 `AT_SYNC` 重建，并向 `ModemService` 上报“传输恢复已开始”。
+因此 Service 不再直接读取 TCP/PDN URC，也不保存传输恢复子状态。语音处于拨号、通话或 `AT+CEER`
+查询期间，Service 只禁止 Network 启动已挂起的恢复，避免其 AT 事务抢占通话结果；语音终态后才允许恢复。
 
 KL15 延迟休眠只在平台处理前已经在线、且本周期处理后仍在线时累计。因此注册完成或 MSD 上传完成而刚进入
 `ONLINE` 的同一调度周期不会提前累计休眠时间，下一周期才开始执行在线休眠策略。
@@ -238,18 +243,18 @@ sequenceDiagram
     end
 
     M-->>P: +CIPEVENT: NETWORK CLOSED UNEXPECTEDLY
-    S->>P: CIPCLOSE / NETOPEN? / NETCLOSE
-    S->>S: 受控重连或 eCall 失败重试
+    P-->>S: 原始 TCP 关闭事件
+    S->>S: ModemNetwork 受控重连
 
     M-->>P: +IPCLOSE: 0,<reason>
     alt 语音拨号或通话中
-        S->>S: 记录 TCP 关闭，待语音终态后重建
+        S->>S: ModemNetwork 记录 TCP 关闭，待语音终态后重建
     else 没有语音链路
-        S->>S: AT_SYNC → TCP 建连 → 平台重新注册
+        S->>S: ModemNetwork: AT_SYNC → TCP 建连 → 平台重新注册
     end
 
     M-->>P: +CGEV: ... PDN DEACT ...
-    S->>S: 终止当前 AT 事务，AT_SYNC → NETCLOSE/NETOPEN 重建
+    S->>S: ModemNetwork: 等当前 AT 事务结束，AT_SYNC → NETCLOSE/NETOPEN 重建
 ```
 
 当前 MSD 使用 AECS 参考工程的 111 字节负载布局：`version`、`identifier`、触发掩码、测试呼叫、车辆类型、17 字节 VIN、动力类型、UTC、经度、纬度、9 组历史点、Delta-V、乘员和翻滚。当前 TBOX 已有的触发掩码、UTC、经纬度会映射进帧；演示常量使用版本 `1`、标识 `1`、测试呼叫 `1` 与 VIN `LDC12345678900001`，其余当前没有来源的字段显式填零。外层帧使用消息类型 `0x10` 和 4 字节大端长度，因此 CIPSEND 总长度为 116 字节。
@@ -262,7 +267,7 @@ sequenceDiagram
 
 当前不能把个人号码的“接通后挂断”作为重试验证：实板两次均已出现 `VOICE CALL: BEGIN` 和 `+CLCC: ...,0,...`，并由 `AT+CEER` 返回原厂手册示例中的 `31 Normal unspecified`。该结果属于正常释放，正确行为是不重拨。此前重复拨号进入留言，是旧判定将原因码 `31` 误作未知失败造成，不能作为语音失败重试已验证的证据。
 
-平台可能在语音仍进行时发送 `+IPCLOSE: 0,<reason>` 关闭数据 socket。样机现将该 URC 识别为 TCP 关闭：若语音拨号或通话中，仅记录并暂停平台数据事务；在语音释放后进入 `AT_SYNC`、TCP 建连和平台注册。收到 `msd_ack` 后会清除本次 MSD 待上传标记，因此 TCP 恢复不会重放已完成 SOS 或再次发送 `ATD`。下一次新的 SOS 不会复用已关闭的 socket，避免 `AT+CIPSEND` 返回 `+CIPERROR: 4`。
+平台可能在语音仍进行时发送 `+IPCLOSE: 0,<reason>` 关闭数据 socket。样机现将该 URC 识别为 TCP 关闭：`ModemNetwork` 记录该原始传输事件，若语音拨号、通话或 `AT+CEER` 查询仍在进行，就延后恢复；语音终态后才进入 `AT_SYNC`、TCP 建连和平台注册。收到 `msd_ack` 后会清除本次 MSD 待上传标记，因此 TCP 恢复不会重放已完成 SOS 或再次发送 `ATD`。下一次新的 SOS 不会复用已关闭的 socket，避免 `AT+CIPSEND` 返回 `+CIPERROR: 4`。这条所有权收口待本次 IAR 编译和实板回归验证。
 
 平台在线时，心跳 `CIPSEND` 与 `CIPRXGET` 下行读取必须串行：心跳结果先完成并消费，才可读取已到达的下行通知；下行读取未完成时不得开始新心跳。拨号、通话和 `AT+CEER` 判定期间暂停平台 AT 事务，避免下行读取覆盖通话事务结果。该仲裁修复待实板长时间心跳回归验证。
 

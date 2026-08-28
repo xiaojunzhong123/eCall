@@ -11,7 +11,6 @@
 #include "ModemCall.h"
 #include "ModemNetwork.h"
 #include "ModemPlatform.h"
-#include "ModemPort.h"
 
 #define MODEM_NETWORK_PROCESS_PERIOD_MS     100U
 #define MODEM_NETWORK_SLEEP_HOLD_MS         300000UL
@@ -20,7 +19,6 @@ typedef struct
 {
     uint8_t u8EmergencyRequestPending;
     uint8_t u8NetworkSleepRequested;
-    uint8_t u8TcpRecoveryRequested;
     uint32_t u32NetworkSleepHoldMs;
 } ModemServiceRuntime_t;
 
@@ -44,22 +42,6 @@ static uint8_t ModemService_IsVoiceCallInProgress(void)
 {
     return ((s_mSvcSts.enCallState == MODEM_CALL_DIALING)
             || (s_mSvcSts.enCallState == MODEM_CALL_ACTIVE)) ? 1U : 0U;
-}
-
-/*******************************************************
-  * Name    :ModemService_EnterTcpRecovery
-  * Author  :LoH
-  * Function:Restart platform transport after an AC7600 link-close notification.
-  * Version :V1.0.0
-  * Data    :2026.08.28
-*******************************************************/
-static void ModemService_EnterTcpRecovery(void)
-{
-    ModemPlatform_Reset();
-    ModemNetwork_Start();
-    s_mSvcSts.enServiceState = MODEM_SERVICE_NETWORK_STARTUP;
-    s_mSvcRun.u8TcpRecoveryRequested = 0U;
-    HMI_LOG_MODEM("TCP_CLOSED_RESTART\r\n");
 }
 
 /*******************************************************
@@ -90,8 +72,6 @@ static void ModemService_EnterNetworkSleep(void)
 *******************************************************/
 static void ModemService_ProcessNetworkStartup(void)
 {
-    ModemNetwork_Process();
-
     if (ModemNetwork_TakeFailure() != 0U)
     {
         ModemService_EnterNetworkSleep();
@@ -262,30 +242,19 @@ void ModemService_Process(void)
 {
     uint8_t u8PlatformWasOnline;
 
-    if (ModemPort_TakePdnDeactivation() != 0U)
+    ModemNetwork_Process((ModemService_IsVoiceCallInProgress() == 0U) ? 1U : 0U);
+
+    if (ModemNetwork_TakeTransportRecoveryStarted() != 0U)
     {
         if (s_mSvcSts.enServiceState != MODEM_SERVICE_SLEEP)
         {
-            s_mSvcRun.u8TcpRecoveryRequested = 1U;
-            HMI_LOG_MODEM("PDN_DEACT_DETECTED\r\n");
+            ModemPlatform_Reset();
+            s_mSvcSts.enServiceState = MODEM_SERVICE_NETWORK_STARTUP;
         }
         else
         {
-            /* Do not wake a KL15-controlled sleeping network for a stale URC. */
+            /* Do not wake a KL15-controlled sleeping network for a stale recovery event. */
         }
-    }
-
-    if (ModemPort_TakeTcpClosed() != 0U)
-    {
-        s_mSvcRun.u8TcpRecoveryRequested = 1U;
-        HMI_LOG_MODEM("TCP_CLOSED_DETECTED\r\n");
-    }
-
-    if ((s_mSvcRun.u8TcpRecoveryRequested != 0U)
-        && (s_mSvcSts.enServiceState != MODEM_SERVICE_SLEEP)
-        && (ModemService_IsVoiceCallInProgress() == 0U))
-    {
-        ModemService_EnterTcpRecovery();
     }
 
     switch (s_mSvcSts.enServiceState)
@@ -299,8 +268,7 @@ void ModemService_Process(void)
             break;
 
         case MODEM_SERVICE_PLATFORM_ACTIVE:
-            if ((s_mSvcRun.u8TcpRecoveryRequested == 0U)
-                && (ModemService_IsVoiceCallInProgress() == 0U))
+            if (ModemService_IsVoiceCallInProgress() == 0U)
             {
                 u8PlatformWasOnline = ModemPlatform_IsOnline();
                 ModemService_ProcessPlatform();
@@ -313,7 +281,7 @@ void ModemService_Process(void)
             }
             else
             {
-                /* Do not send platform data while voice work or transport recovery owns the AT port. */
+                /* Do not send platform data while voice work owns the AT port. */
             }
             break;
 
@@ -331,12 +299,6 @@ void ModemService_Process(void)
         s_mSvcRun.u8EmergencyRequestPending = 0U;
     }
 
-    if ((s_mSvcRun.u8TcpRecoveryRequested != 0U)
-        && (s_mSvcSts.enServiceState != MODEM_SERVICE_SLEEP)
-        && (ModemService_IsVoiceCallInProgress() == 0U))
-    {
-        ModemService_EnterTcpRecovery();
-    }
 }
 
 /*******************************************************

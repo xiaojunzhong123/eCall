@@ -23,7 +23,8 @@ typedef enum
     MODEM_NETWORK_STEP_AT_SYNC,
     MODEM_NETWORK_STEP_PDP_OPENING,
     MODEM_NETWORK_STEP_PDP_ACTIVE,
-    MODEM_NETWORK_STEP_TCP_CONNECTING
+    MODEM_NETWORK_STEP_TCP_CONNECTING,
+    MODEM_NETWORK_STEP_ONLINE
 } ModemNetworkStep_t;
 
 typedef enum
@@ -71,6 +72,8 @@ typedef struct
 {
     ModemNetworkStep_t enNetworkStep;
     uint8_t u8TcpConnectedEvent;
+    uint8_t u8TransportRecoveryPending;
+    uint8_t u8TransportRecoveryStartedEvent;
     uint8_t u8FailureEvent;
 } ModemNetworkStatus_t;
 
@@ -78,6 +81,20 @@ static ModemNetworkRuntime_t s_mNetRun;
 static ModemNetworkStatus_t s_mNetSts;
 
 static void ModemNetwork_EnterFailure(void);
+
+/*******************************************************
+  * Name    :ModemNetwork_EnterTransportRecovery
+  * Author  :LoH
+  * Function:Restart the private network workflow after a confirmed transport loss.
+  * Version :V1.0.0
+  * Data    :2026.08.28
+*******************************************************/
+static void ModemNetwork_EnterTransportRecovery(void)
+{
+    ModemNetwork_Start();
+    s_mNetSts.u8TransportRecoveryStartedEvent = 1U;
+    HMI_LOG_MODEM("TRANSPORT_RECOVERY_START\r\n");
+}
 
 /*******************************************************
   * Name    :ModemNetwork_IsNetworkRegistered
@@ -489,6 +506,7 @@ static void ModemNetwork_ProcessTcpConnecting(void)
                 {
                     HMI_LOG_MODEM("TCP_CONNECTED\r\n");
                     s_mNetSts.u8TcpConnectedEvent = 1U;
+                    s_mNetSts.enNetworkStep = MODEM_NETWORK_STEP_ONLINE;
                 }
                 else
                 {
@@ -567,8 +585,27 @@ void ModemNetwork_Start(void)
   * Version :V1.0.0
   * Data    :2026.08.28
 *******************************************************/
-void ModemNetwork_Process(void)
+void ModemNetwork_Process(uint8_t u8RecoveryAllowed)
 {
+    if ((ModemPort_TakePdnDeactivation() != 0U)
+        || (ModemPort_TakeTcpClosed() != 0U))
+    {
+        if (s_mNetSts.enNetworkStep != MODEM_NETWORK_STEP_IDLE)
+        {
+            s_mNetSts.u8TransportRecoveryPending = 1U;
+            HMI_LOG_MODEM("TRANSPORT_LOSS_DETECTED\r\n");
+        }
+    }
+
+    if ((s_mNetSts.u8TransportRecoveryPending != 0U)
+        && (u8RecoveryAllowed != 0U)
+        && (s_mNetSts.enNetworkStep != MODEM_NETWORK_STEP_IDLE)
+        && (ModemPort_IsIdle() != 0U))
+    {
+        ModemNetwork_EnterTransportRecovery();
+        return;
+    }
+
     switch (s_mNetSts.enNetworkStep)
     {
         case MODEM_NETWORK_STEP_AT_SYNC:
@@ -586,6 +623,9 @@ void ModemNetwork_Process(void)
         case MODEM_NETWORK_STEP_TCP_CONNECTING:
             ModemNetwork_ProcessTcpConnecting();
             break;
+        case MODEM_NETWORK_STEP_ONLINE:
+            /* TCP state is held here until a transport URC requests recovery. */
+            break;
         default:
             break;
     }
@@ -602,6 +642,20 @@ uint8_t ModemNetwork_TakeTcpConnected(void)
 {
     uint8_t u8Result = s_mNetSts.u8TcpConnectedEvent;
     s_mNetSts.u8TcpConnectedEvent = 0U;
+    return u8Result;
+}
+
+/*******************************************************
+  * Name    :ModemNetwork_TakeTransportRecoveryStarted
+  * Author  :LoH
+  * Function:Return and clear the private transport-recovery-started event.
+  * Version :V1.0.0
+  * Data    :2026.08.28
+*******************************************************/
+uint8_t ModemNetwork_TakeTransportRecoveryStarted(void)
+{
+    uint8_t u8Result = s_mNetSts.u8TransportRecoveryStartedEvent;
+    s_mNetSts.u8TransportRecoveryStartedEvent = 0U;
     return u8Result;
 }
 
