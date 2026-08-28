@@ -14,8 +14,10 @@
 #define MODEM_AT_CMD_SIM_STATUS                 "AT+CPIN?\r\n"
 #define MODEM_AT_CMD_SIGNAL_QUALITY             "AT+CSQ\r\n"
 #define MODEM_AT_CMD_CIRCUIT_REGISTRATION       "AT+CEREG?\r\n"
+#define MODEM_AT_CMD_PDP_STATE                  "AT+NETOPEN?\r\n"
 #define MODEM_AT_CMD_PDP_OPEN                   "AT+NETOPEN\r\n"
-#define MODEM_AT_CMD_TCP_KEEPALIVE_FORMAT       "AT+CTCPKA=%u,%u,%u,%u\r\n"
+#define MODEM_AT_CMD_PDP_IPADDR                 "AT+IPADDR\r\n"
+#define MODEM_AT_CMD_TCP_KEEPALIVE               "AT+CTCPKA=1,2,5,1\r\n"
 #define MODEM_AT_CMD_TCP_DATA_ECHO_OFF          "AT+CIPCFG=\"DATAECHO\",OFF\r\n"
 #define MODEM_AT_CMD_TCP_OPEN_FORMAT            "AT+CIPOPEN=%u,\"TCP\",\"%s\",%u\r\n"
 #define MODEM_AT_CMD_TCP_SEND_FORMAT            "AT+CIPSEND=%u,%u\r\n"
@@ -30,7 +32,9 @@
 #define MODEM_AT_RSP_SIM_READY                  "+CPIN: READY"
 #define MODEM_AT_RSP_SIGNAL_QUALITY             "+CSQ:"
 #define MODEM_AT_RSP_NETWORK_REGISTRATION       "+CEREG:"
+#define MODEM_AT_RSP_PDP_STATE                  "+NETOPEN:"
 #define MODEM_AT_RSP_PDP_OPENED                 "+NETOPEN: 0"
+#define MODEM_AT_RSP_TCP_OPEN                   "+CIPOPEN:"
 #define MODEM_AT_RSP_ERROR                      "ERROR"
 #define MODEM_AT_RSP_BUSY                        "BUSY"
 #define MODEM_AT_RSP_NO_CARRIER                  "NO CARRIER"
@@ -54,7 +58,9 @@
 #define MODEM_AT_CFG_SYNC_TIMEOUT_MS            1000U
 #define MODEM_AT_CFG_SIM_TIMEOUT_MS             2000U
 #define MODEM_AT_CFG_NETWORK_TIMEOUT_MS         1000U
-#define MODEM_AT_CFG_PDP_OPEN_TIMEOUT_MS        120000U
+#define MODEM_AT_CFG_PDP_OPEN_TIMEOUT_MS        10000//120000U
+#define MODEM_AT_CFG_TCP_CFG_TIMEOUT_MS         9000U
+#define MODEM_AT_CFG_TCP_OPEN_TIMEOUT_MS        120000U
 #define MODEM_AT_CFG_DIAL_TIMEOUT_MS            30000U
 #define MODEM_AT_CFG_SEND_TIMEOUT_MS            2000U
 #define MODEM_PLATFORM_HEARTBEAT_PERIOD_MS      25000U

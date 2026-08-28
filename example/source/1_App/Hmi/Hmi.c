@@ -11,7 +11,7 @@
 #include "SEGGER_RTT.h"
 #include "cmsis_os.h"
 
-#define HMI_LOG_SLOT_COUNT             8U
+#define HMI_LOG_SLOT_COUNT             32U
 #define HMI_LOG_SLOT_LENGTH            64U
 #define HMI_TIMESTAMP_LENGTH            14U
 #define HMI_PROCESS_PERIOD_MS           10U

@@ -13,6 +13,7 @@
 
 #define MODEM_PORT_QUEUE_LENGTH     8U
 #define MODEM_PORT_LINE_LENGTH      128U
+#define MODEM_PORT_LOG_LENGTH       64U
 
 typedef struct
 {
@@ -67,6 +68,33 @@ static void ModemPort_CopyMatchedResponse(const char *pcLine)
         u8Index++;
     }
     m_stModemPortStatus.acLastMatchedResponse[u8Index] = '\0';
+}
+
+/*******************************************************
+  * Name    :ModemPort_LogResponseLine
+  * Author  :LoH
+  * Function:Submit one complete modem response line as one timestamped HMI record.
+  * Version :V1.0.0
+  * Data    :2026.08.27
+*******************************************************/
+static void ModemPort_LogResponseLine(const char *pcLine)
+{
+    uint8_t au8Log[MODEM_PORT_LOG_LENGTH];
+    uint8_t u8Index = 0U;
+    const char *pcPrefix = "[MODEM RX] ";
+
+    while ((*pcPrefix != '\0') && (u8Index < (MODEM_PORT_LOG_LENGTH - 3U)))
+    {
+        au8Log[u8Index++] = (uint8_t)*pcPrefix++;
+    }
+    while ((*pcLine != '\0') && (u8Index < (MODEM_PORT_LOG_LENGTH - 3U)))
+    {
+        au8Log[u8Index++] = (uint8_t)*pcLine++;
+    }
+    au8Log[u8Index++] = '\r';
+    au8Log[u8Index++] = '\n';
+    au8Log[u8Index] = '\0';
+    Hmi_Log((const char *)au8Log);
 }
 
 /*******************************************************
@@ -172,8 +200,7 @@ static void ModemPort_StartNextCommand(void)
 *******************************************************/
 static void ModemPort_HandleResponseLine(const char *pcLine)
 {
-    Hmi_LogWithPrefix("[MODEM RX] ", pcLine);
-    Hmi_Log("\r\n");
+    ModemPort_LogResponseLine(pcLine);
 
     if (m_stModemPortRuntime.u8Active == 0U)
     {
