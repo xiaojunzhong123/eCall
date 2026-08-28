@@ -24,7 +24,7 @@ flowchart LR
     C -.实板已验证.-> D
     D -.实板已验证.-> E
     E -.实板已验证.-> F
-    F -.MSD 已验证；ATD 待实现.-> G
+    F -.MSD/ATD/远端振铃已实板观察；接通与重试待验证.-> G
 ```
 
 ## 第 4 阶段软件分层收口
@@ -225,10 +225,12 @@ sequenceDiagram
     P->>M: 10 + 111 字节 MSD 候选负载
     M-->>P: OK + +CIPSEND: 0,116,116
     S->>S: MSD_UPLOADED_CALL_PENDING
-    Note over S,M: 此阶段不发送 ATD
-    S->>P: ATD<emergencyNumber>;（下一阶段，号码与时机需授权）
-    M-->>P: 呼叫结果 URC
-    S-->>E: 呼叫状态 / 失败重试事件
+    S->>P: ATD<configuredNumber>;
+    M-->>P: OK（命令已受理）
+    M-->>P: +CLCC: ...,2/3,...（拨号中/远端振铃）
+    M-->>P: VOICE CALL: BEGIN 或 +CLCC: ...,0,...（接通）
+    M-->>P: VOICE CALL: END / NO CARRIER / +CLCC: ...,6,...（结束或失败）
+    S-->>E: 呼叫状态事件
 
     M-->>P: +CIPEVENT: NETWORK CLOSED UNEXPECTEDLY
     S->>P: CIPCLOSE / NETOPEN? / NETCLOSE
@@ -240,7 +242,7 @@ sequenceDiagram
 
 当前 MSD 使用 AECS 参考工程的 111 字节负载布局：`version`、`identifier`、触发掩码、测试呼叫、车辆类型、17 字节 VIN、动力类型、UTC、经度、纬度、9 组历史点、Delta-V、乘员和翻滚。当前 TBOX 已有的触发掩码、UTC、经纬度会映射进帧；演示常量使用版本 `1`、标识 `1`、测试呼叫 `1` 与 VIN `LDC12345678900001`，其余当前没有来源的字段显式填零。外层帧使用消息类型 `0x10` 和 4 字节大端长度，因此 CIPSEND 总长度为 116 字节。
 
-`+CIPSEND: 0,116,116` 证明模组已完整交付 MSD 给 TCP 栈；实板随后通过 `CIPRXGET=4/3` 读取 121 字节平台应答，解析到 `msd_ack`。紧急请求若撞上在途的心跳或下行读取，会等待该单笔事务结束后才进入 MSD，避免并发 AT；成功后服务保持 `CALL_PENDING` 并恢复 `ONLINE`，不会发送或模拟 `ATD`。真实外呼及其 URC、失败重试仍需用户授权。
+`+CIPSEND: 0,116,116` 证明模组已完整交付 MSD 给 TCP 栈；实板随后通过 `CIPRXGET=4/3` 读取 121 字节平台应答，解析到 `msd_ack`。紧急请求若撞上在途的心跳或下行读取，会等待该单笔事务结束后才进入 MSD，避免并发 AT；在已授权号码与时机下，`msd_ack` 后会发送 `ATD`。最近实板日志已观察到该号码的 `+CLCC` 状态 `3`（远端振铃）；本次由被叫未接听而未进入接通状态，随后收到状态 `6`、`VOICE CALL: END` 与 `NO CARRIER`。这验证了拨号和振铃链路，但接通场景仍待验证。`+CLCC` 状态 `2/3` 会停止本地 30 秒误超时，等待终态 URC；自动重试仍未实现。
 
 ## 当前完成度与下一步
 
@@ -258,4 +260,5 @@ sequenceDiagram
 | 平台应答 type | 已实板验证 | 帧头有效后有界提取 JSON `type`；实测注册回包为 `register_ack`，附加字段语义尚未冻结。|
 | 平台心跳 | 已实板验证 | ONLINE 空闲 25 秒后发送候选 43 字节 `0x02` 心跳帧，连续收到 `heartbeat_ack`；与下行接收、MSD 和 KL15 休眠互斥。|
 | MSD 上报 | 已实板验证 | 发送 116 字节候选 MSD 帧，实测 `+CIPSEND: 0,116,116` 后读取并解析到 121 字节 `msd_ack`。|
-| ATD / 拨号重试 | 待实现 | 需要号码、呼叫 URC、失败重试策略和实板发送时机的明确授权。|
+| ATD / 单次拨号 | 已实现，实板已振铃 | `msd_ack` 后已观察到 `+CLCC` 状态 `3`；本次被叫未接听，后续收到状态 `6`、`VOICE CALL: END` 与 `NO CARRIER`。|
+| 拨号失败重试 | 待实现 | SRS 要求 10s/30s/120s、至少 60min 的独立语音重试；当前不自动重复外呼。|

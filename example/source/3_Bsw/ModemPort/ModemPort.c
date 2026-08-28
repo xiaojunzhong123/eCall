@@ -44,6 +44,7 @@ typedef struct
     uint8_t u8RxDataPending;
     uint8_t u8RxDataLinkId;
     uint8_t u8PdnDeactivated;
+    ModemPortVoiceEvent_t enVoiceEvent;
     char acLastMatchedResponse[MODEM_PORT_LINE_LENGTH];
     char acLastDataLine[MODEM_PORT_LINE_LENGTH];
 } ModemPortStatus_t;
@@ -257,6 +258,9 @@ static void ModemPort_StartNextCommand(void)
 static void ModemPort_HandleResponseLine(const char *pcLine)
 {
     unsigned int u32LinkId;
+    unsigned int u32CallIndex;
+    unsigned int u32CallDirection;
+    unsigned int u32CallStatus;
 
     ModemPort_LogResponseLine(pcLine);
 
@@ -269,6 +273,40 @@ static void ModemPort_HandleResponseLine(const char *pcLine)
             ModemPort_FinishActiveCommand(MODEM_PORT_RESULT_ERROR);
         }
         return;
+    }
+
+    if (ModemPort_Contains(pcLine, "VOICE CALL: BEGIN") != 0U)
+    {
+        m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_CONNECTED;
+    }
+    else if (ModemPort_Contains(pcLine, "VOICE CALL: END") != 0U)
+    {
+        m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_ENDED;
+    }
+    else if ((ModemPort_Contains(pcLine, "NO CARRIER") != 0U)
+             || (ModemPort_Contains(pcLine, "BUSY") != 0U)
+             || (ModemPort_Contains(pcLine, "NO ANSWER") != 0U))
+    {
+        m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_FAILED;
+    }
+    else if (sscanf(pcLine, "+CLCC: %u,%u,%u", &u32CallIndex, &u32CallDirection, &u32CallStatus) == 3)
+    {
+        if (u32CallStatus == 0U)
+        {
+            m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_CONNECTED;
+        }
+        else if ((u32CallStatus == 2U) || (u32CallStatus == 3U))
+        {
+            m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_PROGRESS;
+        }
+        else if (u32CallStatus == 6U)
+        {
+            m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_FAILED;
+        }
+        else
+        {
+            /* Other +CLCC states do not change the private call lifecycle. */
+        }
     }
 
     if ((sscanf(pcLine, "+CIPRXGET: 1,%u", &u32LinkId) == 1)
@@ -294,7 +332,8 @@ static void ModemPort_HandleResponseLine(const char *pcLine)
     }
     else if ((ModemPort_Contains(pcLine, "ERROR") != 0U)
              || (ModemPort_Contains(pcLine, "BUSY") != 0U)
-             || (ModemPort_Contains(pcLine, "NO CARRIER") != 0U))
+             || (ModemPort_Contains(pcLine, "NO CARRIER") != 0U)
+             || (ModemPort_Contains(pcLine, "NO ANSWER") != 0U))
     {
         ModemPort_FinishActiveCommand(MODEM_PORT_RESULT_ERROR);
     }
@@ -532,6 +571,21 @@ uint8_t ModemPort_TakePdnDeactivation(void)
     return 1U;
 }
 
+/*******************************************************
+  * Name    :ModemPort_TakeVoiceEvent
+  * Author  :LoH
+  * Function:Return and clear one AC7600 voice-call result event.
+  * Version :V1.0.0
+  * Data    :2026.08.28
+*******************************************************/
+ModemPortVoiceEvent_t ModemPort_TakeVoiceEvent(void)
+{
+    ModemPortVoiceEvent_t enVoiceEvent = m_stModemPortStatus.enVoiceEvent;
+
+    m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_NONE;
+    return enVoiceEvent;
+}
+
 void ModemPort_ClearFailure(void)
 {
     if (m_stModemPortRuntime.u8Active == 0U)
@@ -542,6 +596,7 @@ void ModemPort_ClearFailure(void)
         m_stModemPortStatus.u8HasFailure = 0U;
         m_stModemPortStatus.u8RxDataPending = 0U;
         m_stModemPortStatus.u8PdnDeactivated = 0U;
+        m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_NONE;
         m_stModemPortStatus.enLastResult = MODEM_PORT_RESULT_IDLE;
         m_stModemPortStatus.acLastMatchedResponse[0] = '\0';
         m_stModemPortStatus.acLastDataLine[0] = '\0';

@@ -94,7 +94,10 @@ static void ModemService_ProcessPlatform(void)
         case MODEM_PLATFORM_EVENT_NONE:
         case MODEM_PLATFORM_EVENT_REGISTERED:
         case MODEM_PLATFORM_EVENT_MSD_STARTED:
+            break;
+
         case MODEM_PLATFORM_EVENT_MSD_UPLOADED:
+            ModemCall_Start(&s_mSvcSts.enCallState);
             break;
 
         case MODEM_PLATFORM_EVENT_FAILED:

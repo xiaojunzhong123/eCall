@@ -12,6 +12,7 @@
 
 void ModemCall_Init(void);
 void ModemCall_Reset(void);
+void ModemCall_Start(ModemCallState_t *penCallState);
 void ModemCall_Process(ModemCallState_t *penCallState);
 
 #endif
