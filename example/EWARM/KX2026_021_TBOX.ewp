@@ -2416,6 +2416,15 @@
                 <file>
                     <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemService.c</name>
                 </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemCall.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemNetwork.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemPlatform.c</name>
+                </file>
             </group>
             <group>
                 <name>ModemPort</name>

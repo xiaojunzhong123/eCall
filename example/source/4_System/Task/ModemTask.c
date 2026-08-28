@@ -13,45 +13,25 @@
 #include "TaskManager.h"
 
 /*******************************************************
-  * Name    :ModemTask_ShowNetworkState
+  * Name    :ModemTask_ShowServiceState
   * Author  :LoH
-  * Function:Show modem network state changes through HMI.
+  * Function:Show modem service lifecycle state changes through HMI.
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
-static void ModemTask_ShowNetworkState(ModemNetworkState_t enNetworkState)
+static void ModemTask_ShowServiceState(ModemServiceState_t enServiceState)
 {
-    if (enNetworkState == MODEM_NETWORK_SLEEP)
+    if (enServiceState == MODEM_SERVICE_SLEEP)
     {
         HMI_LOG_MODEM("SLEEP\r\n");
     }
-    else if (enNetworkState == MODEM_NETWORK_AT_SYNC)
+    else if (enServiceState == MODEM_SERVICE_NETWORK_STARTUP)
     {
-        HMI_LOG_MODEM("AT_SYNC\r\n");
+        HMI_LOG_MODEM("NETWORK_STARTUP\r\n");
     }
-    else if (enNetworkState == MODEM_NETWORK_PDP_OPENING)
+    else if (enServiceState == MODEM_SERVICE_PLATFORM_ACTIVE)
     {
-        HMI_LOG_MODEM("PDP_OPENING\r\n");
-    }
-    else if (enNetworkState == MODEM_NETWORK_PDP_ACTIVE)
-    {
-        HMI_LOG_MODEM("PDP_ACTIVE\r\n");
-    }
-    else if (enNetworkState == MODEM_NETWORK_TCP_CONNECTING)
-    {
-        HMI_LOG_MODEM("TCP_CONNECTING\r\n");
-    }
-    else if (enNetworkState == MODEM_NETWORK_PLATFORM_REGISTERING)
-    {
-        HMI_LOG_MODEM("PLATFORM_REGISTERING\r\n");
-    }
-    else if (enNetworkState == MODEM_NETWORK_ONLINE)
-    {
-        HMI_LOG_MODEM("ONLINE\r\n");
-    }
-    else if (enNetworkState == MODEM_NETWORK_MSD_UPLOADING)
-    {
-        HMI_LOG_MODEM("MSD_UPLOADING\r\n");
+        HMI_LOG_MODEM("PLATFORM_ACTIVE\r\n");
     }
     else
     {
@@ -70,8 +50,8 @@ static void ModemTask_Entry(void const *argument)
 {
     ModemCallState_t enLastState = MODEM_CALL_IDLE;
     ModemCallState_t enCurrentState;
-    ModemNetworkState_t enLastNetworkState = MODEM_NETWORK_SLEEP;
-    ModemNetworkState_t enCurrentNetworkState;
+    ModemServiceState_t enLastServiceState = MODEM_SERVICE_SLEEP;
+    ModemServiceState_t enCurrentServiceState;
     RteKl15State_t enLastKl15State = RTE_KL15_OFF;
     RteKl15State_t enCurrentKl15State;
 
@@ -83,7 +63,7 @@ static void ModemTask_Entry(void const *argument)
         ModemPort_Process();
         ModemService_Process();
         enCurrentState = ModemService_GetCallState();
-        enCurrentNetworkState = ModemService_GetNetworkState();
+        enCurrentServiceState = ModemService_GetState();
         enCurrentKl15State = (RteKl15State_t)RteSys_GetU8Sig(RTESYS_U8_KL15_STATE);
 
         if (enCurrentKl15State != enLastKl15State)
@@ -101,10 +81,10 @@ static void ModemTask_Entry(void const *argument)
             enLastKl15State = enCurrentKl15State;
         }
 
-        if (enCurrentNetworkState != enLastNetworkState)
+        if (enCurrentServiceState != enLastServiceState)
         {
-            ModemTask_ShowNetworkState(enCurrentNetworkState);
-            enLastNetworkState = enCurrentNetworkState;
+            ModemTask_ShowServiceState(enCurrentServiceState);
+            enLastServiceState = enCurrentServiceState;
         }
 
         if (enCurrentState != enLastState)

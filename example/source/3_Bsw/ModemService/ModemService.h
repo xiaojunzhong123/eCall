@@ -22,15 +22,10 @@ typedef enum
 
 typedef enum
 {
-    MODEM_NETWORK_SLEEP = 0U,
-    MODEM_NETWORK_AT_SYNC,
-    MODEM_NETWORK_PDP_OPENING,
-    MODEM_NETWORK_PDP_ACTIVE,
-    MODEM_NETWORK_TCP_CONNECTING,
-    MODEM_NETWORK_PLATFORM_REGISTERING,
-    MODEM_NETWORK_ONLINE,
-    MODEM_NETWORK_MSD_UPLOADING
-} ModemNetworkState_t;
+    MODEM_SERVICE_SLEEP = 0U,
+    MODEM_SERVICE_NETWORK_STARTUP,
+    MODEM_SERVICE_PLATFORM_ACTIVE
+} ModemServiceState_t;
 
 /* Initialize modem call service state. */
 void ModemService_Init(void);
@@ -44,7 +39,7 @@ void ModemService_RequestNetworkSleep(void);
 void ModemService_Process(void);
 /* Return the current modem call state. */
 ModemCallState_t ModemService_GetCallState(void);
-/* Return the current modem network state. */
-ModemNetworkState_t ModemService_GetNetworkState(void);
+/* Return the current modem service lifecycle state. */
+ModemServiceState_t ModemService_GetState(void);
 
 #endif
