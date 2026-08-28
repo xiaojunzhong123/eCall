@@ -78,14 +78,19 @@ sequenceDiagram
     M-->>P: OK
 
     alt PDP 已打开
-        S->>S: PDP_ALREADY_OPEN
-    else PDP 未打开
-        S->>P: AT+NETOPEN（激活 PDP）
-        P->>M: AT+NETOPEN
+        S->>P: AT+NETCLOSE（关闭残留 PDP 与 socket）
+        P->>M: AT+NETCLOSE
         M-->>P: OK
-        M-->>P: +NETOPEN: 0
-        S->>S: PDP_OPENED
+        M-->>P: +NETCLOSE: 0
+        S->>S: PDP_CLOSED
+    else PDP 未打开
     end
+
+    S->>P: AT+NETOPEN（激活干净 PDP）
+    P->>M: AT+NETOPEN
+    M-->>P: OK
+    M-->>P: +NETOPEN: 0
+    S->>S: PDP_OPENED
 
     S->>P: AT+IPADDR（读取 PDP 地址）
     P->>M: AT+IPADDR
@@ -95,7 +100,7 @@ sequenceDiagram
     S->>S: PDP_IPADDR_READY / PDP_ACTIVE
 ```
 
-实板已观察到 IPv6 与 IPv4 双栈地址。`AT+NETOPEN` 的成功条件是异步结果 `+NETOPEN: 0`，而不是先返回的 `OK`。
+实板已观察到 IPv6 与 IPv4 双栈地址。每次新网络流程若发现 PDP 已打开，会先执行 `NETCLOSE` 清除残留 socket/PDP，再重新 `NETOPEN`；`NETOPEN` 的成功条件是异步结果 `+NETOPEN: 0`，而不是先返回的 `OK`。不使用 `CRESET`，仅在连续软恢复失败时再考虑模组复位。
 
 ## 阶段 3：TCP 配置与建连（实板已验证）
 
@@ -128,9 +133,11 @@ sequenceDiagram
 
 `AT+CTCPKA=1,2,5,1` 的含义是：启用保活、空闲 2 分钟后探测、最多重试 5 次、探测间隔 1 分钟。`CIPOPEN` 必须等待 `+CIPOPEN: 0,0`；`+CIPOPEN: 0,<非零>` 会立即记录 `TCP_OPEN_RESULT_FAILED` 并进入休眠，避免误判或长时间等待。
 
+当前实现对 `CIPOPEN` 失败增加了 3 次受控重试，间隔 5 秒；保留已完成的 PDP 和 TCP 配置，耗尽后才进入 `SLEEP`。
+
 当前服务器 `8.137.175.163:8902` 是从 AECS 参考工程沿用的候选平台，已于上述样机试验中实际连接成功；其平台协议尚未冻结。
 
-## 阶段 4：平台注册、发送与接收（待实现）
+## 阶段 4：平台注册、发送与接收（实板部分验证）
 
 ```mermaid
 sequenceDiagram
@@ -151,10 +158,37 @@ sequenceDiagram
     V-->>M: 注册应答 / 平台数据
     M-->>P: +CIPRXGET: 1,0（存在缓存数据）
     S->>P: AT+CIPRXGET=4,0（查询未读长度）
-    S->>P: AT+CIPRXGET=2,0,<readLength>（读取 ASCII 数据）
+    S->>P: AT+CIPRXGET=3,0,<readLength>（读取十六进制数据）
+    M-->>P: +CIPRXGET: 3,0,<readLength>,0 + 十六进制负载 + OK
+    P-->>S: 还原字节并校验 AECS 类型/长度帧头
+    S->>S: 有界提取 JSON "type" 并记录语义线索
 ```
 
-平台注册报文、回包语义、心跳内容与周期尚未确认；当前 `PLATFORM_REGISTERING` 仅为状态机入口，未发送数据。二进制负载需要十六进制读取或长度驱动接收，不能按普通 CR/LF 文本行解析。
+当前源码已实现候选注册发送：`01 + 4 字节大端 JSON 长度 + {"role":"device","deviceId":"7091"}`，经 `CIPSEND` 的 `>` 提示符发送，并以 `+CIPSEND: 0,req,cnf` 且 `req == cnf` 判定成功。TCP 建连前会先执行 `AT+CIPRXGET=1`，平台下行只上报 `+CIPRXGET: 1,<link>`；随后查询缓存长度，并对不超过 750 字节的数据使用 `AT+CIPRXGET=3,<link>,<length>` 读回十六进制文本、还原字节并校验候选 AECS 帧头。
+
+在帧头校验通过后，服务仅在帧内有界扫描 JSON 的 `"type":"..."`，最多记录 31 个可打印 ASCII 字符为 `PLATFORM_RX_TYPE:<value>`；不打印完整平台 JSON，也不因未知 `type` 改写当前 `ONLINE` 状态。实板已收到长度 127 的候选 AECS 帧，并确认其 `type` 为 `register_ack`；该回包的附加成功/失败字段语义仍未冻结。
+
+### ONLINE 内的候选心跳（已实现，待实板验证）
+
+```mermaid
+sequenceDiagram
+    participant S as ModemService
+    participant P as ModemPort
+    participant M as AC7600
+    participant V as 平台服务器
+
+    S->>S: ONLINE 空闲累计 25 s
+    S->>P: AT+CIPSEND=0,<heartbeatLength>
+    P->>M: AT+CIPSEND=0,<heartbeatLength>
+    M-->>P: >
+    P->>M: 02 + 长度 + {"type":"heartbeat","deviceId":"7091"}
+    M-->>P: OK + +CIPSEND: 0,<req>,<cnf>
+    P-->>S: req == cnf
+    S->>S: HEARTBEAT_SENT，重新累计 25 s
+    M->>V: TCP 心跳帧
+```
+
+心跳仅在平台接收空闲、没有待上传 MSD、且未请求 KL15 休眠时启动，因此不会与 `CIPRXGET` 或紧急业务竞争 UART AT 事务。CIPSEND 的提示符和长度确认与注册发送完全一致；任一步失败进入现有网络恢复路径。心跳帧内容、25 秒周期仍是 AECS 候选，需看服务器响应后再冻结。
 
 ## 阶段 5：MSD、外呼与故障恢复（待实现）
 
@@ -175,6 +209,9 @@ sequenceDiagram
     M-->>P: +CIPEVENT: NETWORK CLOSED UNEXPECTEDLY
     S->>P: CIPCLOSE / NETOPEN? / NETCLOSE
     S->>S: 受控重连或 eCall 失败重试
+
+    M-->>P: +CGEV: ... PDN DEACT ...
+    S->>S: 终止当前 AT 事务，AT_SYNC → NETCLOSE/NETOPEN 重建
 ```
 
 ## 当前完成度与下一步
@@ -186,7 +223,10 @@ sequenceDiagram
 | PDP | 已验证 | `NETOPEN?`、`NETOPEN`、`IPADDR` 已完成；观察到 IPv4/IPv6 地址。|
 | TCP | 已验证 | `CTCPKA`、`CIPCFG`、`CIPOPEN`；收到 `+CIPOPEN: 0,0`。|
 | RTT 日志 | 已调整 | HMI 队列 32 条、RTT 上行缓冲 4 KiB；仍需长时间无断点观察。|
-| 平台注册 | 待实现 | 缺少已确认的注册帧和平台应答规则。|
-| CIPSEND / 接收 | 待实现 | ModemPort 仍是行式 AT 事务，尚不支持 `>` 与二进制长度收发。|
+| 平台注册 | 已实板验证 | 注册帧发送完成后，实测收到 `register_ack`；附加字段语义尚未冻结。|
+| CIPSEND | 已实板验证 | 已实测 `>`、固定长度原始数据与 `+CIPSEND` 长度确认。|
+| 接收事件/长度 | 已实板验证 | 已实测 `CIPRXGET=1` 缓冲下行与 `CIPRXGET=4` 长度查询。|
+| 接收内容/帧头 | 已实板验证 | 使用 `CIPRXGET=3` 读取最多 750 字节十六进制内容；已收到并通过 127 字节候选 AECS 类型/长度帧头校验。|
+| 平台应答 type | 已实板验证 | 帧头有效后有界提取 JSON `type`；实测注册回包为 `register_ack`，附加字段语义尚未冻结。|
+| 平台心跳 | 已实板验证 | ONLINE 空闲 25 秒后发送候选 43 字节 `0x02` 心跳帧，连续收到 `heartbeat_ack`；与下行接收、MSD 和 KL15 休眠互斥。|
 | MSD / ATD / 重试 | 待实现 | 需要 MSD 格式、号码、呼叫 URC 和重试策略的明确授权。|
-

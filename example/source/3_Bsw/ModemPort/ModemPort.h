@@ -20,12 +20,20 @@ typedef enum
 
 void ModemPort_Init(void);
 uint8_t ModemPort_QueueCommand(const char *pcCommand, const char *pcExpected, uint32_t u32TimeoutMs);
+/* Send one fixed-length payload after a completed CIPSEND prompt transaction. */
+uint8_t ModemPort_SendData(const uint8_t *pu8Data, uint16_t u16Length, const char *pcExpected, uint32_t u32TimeoutMs);
 void ModemPort_Process(void);
 uint8_t ModemPort_IsIdle(void);
 uint8_t ModemPort_HasFailure(void);
 ModemPortResult_t ModemPort_GetLastResult(void);
 /* Return the response line that completed the latest command. */
 const char *ModemPort_GetLastMatchedResponse(void);
+/* Return the latest hexadecimal payload line received by a CIPSEND/CIPRXGET transaction. */
+const char *ModemPort_GetLastDataLine(void);
+/* Return and clear one buffered TCP receive-data notification. */
+uint8_t ModemPort_TakeRxDataEvent(uint8_t *pu8LinkId);
+/* Return and clear one PDP deactivation notification. */
+uint8_t ModemPort_TakePdnDeactivation(void);
 void ModemPort_ClearFailure(void);
 
 #endif

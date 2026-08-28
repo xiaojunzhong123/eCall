@@ -9,12 +9,12 @@
 #include "Uart_Cfg.h"
 #include "hc32_ll_interrupts.h"
 /*-------------variable statement---------------------*/
-#define UART_RX_BUFFER_LENGTH    128U
+#define UART_RX_BUFFER_LENGTH    2048U
 
 uint8_t data[50] = { 0 };
 static uint8_t m_au8RxBuffer[UART_RX_BUFFER_LENGTH];
-static volatile uint8_t m_u8RxReadIndex = 0U;
-static volatile uint8_t m_u8RxWriteIndex = 0U;
+static volatile uint16_t m_u16RxReadIndex = 0U;
+static volatile uint16_t m_u16RxWriteIndex = 0U;
 static volatile uint16_t m_u16RxOverflowCount = 0U;
 /*-------------Function-------------------------------*/
 
@@ -45,16 +45,16 @@ static void USART4_RxError_IrqCallback(void)
 static void USART4_RxFull_IrqCallback(void)
 {
     uint8_t u8Data = (uint8_t)USART_ReadData(CM_USART4);
-    uint8_t u8NextWriteIndex = m_u8RxWriteIndex + 1U;
+    uint16_t u16NextWriteIndex = m_u16RxWriteIndex + 1U;
 
-    if (u8NextWriteIndex >= UART_RX_BUFFER_LENGTH)
+    if (u16NextWriteIndex >= UART_RX_BUFFER_LENGTH)
     {
-        u8NextWriteIndex = 0U;
+        u16NextWriteIndex = 0U;
     }
-    if (u8NextWriteIndex != m_u8RxReadIndex)
+    if (u16NextWriteIndex != m_u16RxReadIndex)
     {
-        m_au8RxBuffer[m_u8RxWriteIndex] = u8Data;
-        m_u8RxWriteIndex = u8NextWriteIndex;
+        m_au8RxBuffer[m_u16RxWriteIndex] = u8Data;
+        m_u16RxWriteIndex = u16NextWriteIndex;
     }
     else
     {
@@ -73,8 +73,8 @@ void Uart_Init(void)
 {
     stc_usart_uart_init_t   stcUartInit;
 
-    m_u8RxReadIndex = 0U;
-    m_u8RxWriteIndex = 0U;
+    m_u16RxReadIndex = 0U;
+    m_u16RxWriteIndex = 0U;
     m_u16RxOverflowCount = 0U;
 
     GPIO_SetFunc(GPIO_PORT_E, GPIO_PIN_06, GPIO_FUNC_32);//TX
@@ -164,13 +164,13 @@ uint8_t Uart_ReadRxData(uint8_t *pu8Buffer, uint8_t u8Length)
     {
         return 0U;
     }
-    while ((u8ReadLength < u8Length) && (m_u8RxReadIndex != m_u8RxWriteIndex))
+    while ((u8ReadLength < u8Length) && (m_u16RxReadIndex != m_u16RxWriteIndex))
     {
-        pu8Buffer[u8ReadLength] = m_au8RxBuffer[m_u8RxReadIndex];
-        m_u8RxReadIndex++;
-        if (m_u8RxReadIndex >= UART_RX_BUFFER_LENGTH)
+        pu8Buffer[u8ReadLength] = m_au8RxBuffer[m_u16RxReadIndex];
+        m_u16RxReadIndex++;
+        if (m_u16RxReadIndex >= UART_RX_BUFFER_LENGTH)
         {
-            m_u8RxReadIndex = 0U;
+            m_u16RxReadIndex = 0U;
         }
         u8ReadLength++;
     }
