@@ -44,6 +44,7 @@ typedef struct
     uint8_t u8RxDataPending;
     uint8_t u8RxDataLinkId;
     uint8_t u8PdnDeactivated;
+    uint8_t u8TcpClosed;
     ModemPortVoiceEvent_t enVoiceEvent;
     char acLastMatchedResponse[MODEM_PORT_LINE_LENGTH];
     char acLastDataLine[MODEM_PORT_LINE_LENGTH];
@@ -275,6 +276,17 @@ static void ModemPort_HandleResponseLine(const char *pcLine)
         return;
     }
 
+    if ((sscanf(pcLine, "+IPCLOSE: %u,%u", &u32LinkId, &u32CallStatus) == 2)
+        && (u32LinkId == 0U))
+    {
+        m_stModemPortStatus.u8TcpClosed = 1U;
+        if (m_stModemPortRuntime.u8Active != 0U)
+        {
+            ModemPort_FinishActiveCommand(MODEM_PORT_RESULT_ERROR);
+        }
+        return;
+    }
+
     if (ModemPort_Contains(pcLine, "VOICE CALL: BEGIN") != 0U)
     {
         m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_CONNECTED;
@@ -287,7 +299,10 @@ static void ModemPort_HandleResponseLine(const char *pcLine)
              || (ModemPort_Contains(pcLine, "BUSY") != 0U)
              || (ModemPort_Contains(pcLine, "NO ANSWER") != 0U))
     {
-        m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_FAILED;
+        if (m_stModemPortStatus.enVoiceEvent != MODEM_PORT_VOICE_EVENT_ENDED)
+        {
+            m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_FAILED;
+        }
     }
     else if (sscanf(pcLine, "+CLCC: %u,%u,%u", &u32CallIndex, &u32CallDirection, &u32CallStatus) == 3)
     {
@@ -301,7 +316,7 @@ static void ModemPort_HandleResponseLine(const char *pcLine)
         }
         else if (u32CallStatus == 6U)
         {
-            m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_FAILED;
+            m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_DISCONNECTED;
         }
         else
         {
@@ -572,6 +587,24 @@ uint8_t ModemPort_TakePdnDeactivation(void)
 }
 
 /*******************************************************
+  * Name    :ModemPort_TakeTcpClosed
+  * Author  :LoH
+  * Function:Return and clear one AC7600 TCP link-close notification.
+  * Version :V1.0.0
+  * Data    :2026.08.28
+*******************************************************/
+uint8_t ModemPort_TakeTcpClosed(void)
+{
+    if (m_stModemPortStatus.u8TcpClosed == 0U)
+    {
+        return 0U;
+    }
+
+    m_stModemPortStatus.u8TcpClosed = 0U;
+    return 1U;
+}
+
+/*******************************************************
   * Name    :ModemPort_TakeVoiceEvent
   * Author  :LoH
   * Function:Return and clear one AC7600 voice-call result event.
@@ -596,6 +629,7 @@ void ModemPort_ClearFailure(void)
         m_stModemPortStatus.u8HasFailure = 0U;
         m_stModemPortStatus.u8RxDataPending = 0U;
         m_stModemPortStatus.u8PdnDeactivated = 0U;
+        m_stModemPortStatus.u8TcpClosed = 0U;
         m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_NONE;
         m_stModemPortStatus.enLastResult = MODEM_PORT_RESULT_IDLE;
         m_stModemPortStatus.acLastMatchedResponse[0] = '\0';

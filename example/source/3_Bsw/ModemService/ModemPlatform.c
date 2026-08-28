@@ -74,6 +74,7 @@ typedef struct
     ModemPlatformHeartbeatStep_t enHeartbeatStep;
     ModemPlatformMsdStep_t enMsdStep;
     uint8_t u8MsdUploadRequested;
+    uint8_t u8MsdAckReceived;
     uint32_t u32HeartbeatHoldMs;
     char acRegisterCommand[MODEM_PLATFORM_COMMAND_LENGTH];
     char acHeartbeatCommand[MODEM_PLATFORM_COMMAND_LENGTH];
@@ -688,10 +689,18 @@ static void ModemPlatform_ProcessOnline(uint8_t u8HeartbeatEnabled)
     char acPlatformReplyType[MODEM_PLATFORM_REPLY_TYPE_LENGTH];
     int i32CommandLength;
 
+    ModemPlatform_ProcessHeartbeat(u8HeartbeatEnabled);
+
+    if (s_mPlatSts.enEvent == MODEM_PLATFORM_EVENT_FAILED)
+    {
+        return;
+    }
+
     switch (s_mPlatRun.enReceiveStep)
     {
         case MODEM_PLATFORM_RX_STEP_IDLE:
-            if (ModemPort_TakeRxDataEvent(&s_mPlatRun.u8ReceiveLinkId) != 0U)
+            if ((s_mPlatRun.enHeartbeatStep == MODEM_PLATFORM_HEARTBEAT_STEP_WAIT)
+                && (ModemPort_TakeRxDataEvent(&s_mPlatRun.u8ReceiveLinkId) != 0U))
             {
                 s_mPlatRun.enReceiveStep = MODEM_PLATFORM_RX_STEP_LENGTH_QUEUE;
             }
@@ -788,6 +797,15 @@ static void ModemPlatform_ProcessOnline(uint8_t u8HeartbeatEnabled)
                                                        sizeof(acPlatformReplyType)) != 0U)
                     {
                         ModemPlatform_LogReplyType(acPlatformReplyType);
+                        if ((s_mPlatSts.u8MsdUploadComplete != 0U)
+                            && (s_mPlatRun.u8MsdAckReceived == 0U)
+                            && (strcmp(acPlatformReplyType, "msd_ack") == 0))
+                        {
+                            s_mPlatRun.u8MsdAckReceived = 1U;
+                            s_mPlatRun.u8MsdUploadRequested = 0U;
+                            s_mPlatSts.enEvent = MODEM_PLATFORM_EVENT_MSD_UPLOADED;
+                            HMI_LOG_MODEM("MSD_ACK_CALL_START\r\n");
+                        }
                     }
                     else
                     {
@@ -816,8 +834,6 @@ static void ModemPlatform_ProcessOnline(uint8_t u8HeartbeatEnabled)
     {
         return;
     }
-
-    ModemPlatform_ProcessHeartbeat(u8HeartbeatEnabled);
 
     if ((s_mPlatRun.u8MsdUploadRequested != 0U)
         && (s_mPlatSts.u8MsdUploadComplete == 0U)
@@ -908,8 +924,7 @@ static void ModemPlatform_ProcessMsdUploading(void)
                 {
                     s_mPlatSts.u8MsdUploadComplete = 1U;
                     s_mPlatSts.enPhase = MODEM_PLATFORM_PHASE_ONLINE;
-                    s_mPlatSts.enEvent = MODEM_PLATFORM_EVENT_MSD_UPLOADED;
-                    HMI_LOG_MODEM("MSD_UPLOADED_CALL_PENDING\r\n");
+                    HMI_LOG_MODEM("MSD_UPLOADED_WAIT_ACK\r\n");
                 }
                 else
                 {
@@ -999,6 +1014,7 @@ void ModemPlatform_RequestMsdUpload(const EcallMsd_t *pstMsd)
     {
         s_mPlatRun.stLastMsd = *pstMsd;
         s_mPlatRun.u8MsdUploadRequested = 1U;
+        s_mPlatRun.u8MsdAckReceived = 0U;
         s_mPlatRun.enMsdStep = MODEM_PLATFORM_MSD_STEP_PREPARE;
         s_mPlatSts.u8MsdUploadComplete = 0U;
     }

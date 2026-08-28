@@ -224,17 +224,29 @@ sequenceDiagram
     M-->>P: >
     P->>M: 10 + 111 字节 MSD 候选负载
     M-->>P: OK + +CIPSEND: 0,116,116
-    S->>S: MSD_UPLOADED_CALL_PENDING
+    S->>S: 等待 msd_ack 后允许 ATD
     S->>P: ATD<configuredNumber>;
     M-->>P: OK（命令已受理）
     M-->>P: +CLCC: ...,2/3,...（拨号中/远端振铃）
     M-->>P: VOICE CALL: BEGIN 或 +CLCC: ...,0,...（接通）
-    M-->>P: VOICE CALL: END / NO CARRIER / +CLCC: ...,6,...（结束或失败）
-    S-->>E: 呼叫状态事件
+    M-->>P: VOICE CALL: END / NO CARRIER / +CLCC: ...,6,...（释放）
+    S->>P: AT+CEER 查询最后一次释放原因
+    alt +CEER 原因码 16 或 31（正常释放）
+        S-->>E: 呼叫结束事件，不重试
+    else 17/18/19/21 或未知原因
+        S->>S: 样机默认结束；开启重试后按 10 s / 30 s / 120 s 重试
+    end
 
     M-->>P: +CIPEVENT: NETWORK CLOSED UNEXPECTEDLY
     S->>P: CIPCLOSE / NETOPEN? / NETCLOSE
     S->>S: 受控重连或 eCall 失败重试
+
+    M-->>P: +IPCLOSE: 0,<reason>
+    alt 语音拨号或通话中
+        S->>S: 记录 TCP 关闭，待语音终态后重建
+    else 没有语音链路
+        S->>S: AT_SYNC → TCP 建连 → 平台重新注册
+    end
 
     M-->>P: +CGEV: ... PDN DEACT ...
     S->>S: 终止当前 AT 事务，AT_SYNC → NETCLOSE/NETOPEN 重建
@@ -242,7 +254,19 @@ sequenceDiagram
 
 当前 MSD 使用 AECS 参考工程的 111 字节负载布局：`version`、`identifier`、触发掩码、测试呼叫、车辆类型、17 字节 VIN、动力类型、UTC、经度、纬度、9 组历史点、Delta-V、乘员和翻滚。当前 TBOX 已有的触发掩码、UTC、经纬度会映射进帧；演示常量使用版本 `1`、标识 `1`、测试呼叫 `1` 与 VIN `LDC12345678900001`，其余当前没有来源的字段显式填零。外层帧使用消息类型 `0x10` 和 4 字节大端长度，因此 CIPSEND 总长度为 116 字节。
 
-`+CIPSEND: 0,116,116` 证明模组已完整交付 MSD 给 TCP 栈；实板随后通过 `CIPRXGET=4/3` 读取 121 字节平台应答，解析到 `msd_ack`。紧急请求若撞上在途的心跳或下行读取，会等待该单笔事务结束后才进入 MSD，避免并发 AT；在已授权号码与时机下，`msd_ack` 后会发送 `ATD`。最近实板日志已观察到该号码的 `+CLCC` 状态 `3`（远端振铃）；本次由被叫未接听而未进入接通状态，随后收到状态 `6`、`VOICE CALL: END` 与 `NO CARRIER`。这验证了拨号和振铃链路，但接通场景仍待验证。`+CLCC` 状态 `2/3` 会停止本地 30 秒误超时，等待终态 URC；自动重试仍未实现。
+`+CIPSEND: 0,116,116` 证明模组已完整交付 MSD 给 TCP 栈；实板随后通过 `CIPRXGET=4/3` 读取 121 字节平台应答，解析到 `msd_ack`。紧急请求若撞上在途的心跳或下行读取，会等待该单笔事务结束后才进入 MSD，避免并发 AT；代码现改为只在 `msd_ack` 后发送 `ATD`。释放后查询 `AT+CEER`：根据原厂 AT 手册，原因码 `16` 与 `31 Normal unspecified` 均归类为正常结束。`+CLCC` 状态 `2/3` 会停止本地 30 秒误超时，等待终态 URC。
+
+### 语音重试保留与当前不可测原因
+
+语音重试状态机与 10 s、30 s、后续 120 s、累计 60 min 的参数已保留，但 `MODEM_AT_CFG_VOICE_RETRY_ENABLED` 当前固定为 `0U`。因此样机在拨号失败或 `AT+CEER` 返回 `17/18/19/21` 或未知原因时，输出 `VOICE_RETRY_DISABLED` 后结束本次呼叫，不会向个人演示号码重复外呼。
+
+当前不能把个人号码的“接通后挂断”作为重试验证：实板两次均已出现 `VOICE CALL: BEGIN` 和 `+CLCC: ...,0,...`，并由 `AT+CEER` 返回原厂手册示例中的 `31 Normal unspecified`。该结果属于正常释放，正确行为是不重拨。此前重复拨号进入留言，是旧判定将原因码 `31` 误作未知失败造成，不能作为语音失败重试已验证的证据。
+
+平台可能在语音仍进行时发送 `+IPCLOSE: 0,<reason>` 关闭数据 socket。样机现将该 URC 识别为 TCP 关闭：若语音拨号或通话中，仅记录并暂停平台数据事务；在语音释放后进入 `AT_SYNC`、TCP 建连和平台注册。收到 `msd_ack` 后会清除本次 MSD 待上传标记，因此 TCP 恢复不会重放已完成 SOS 或再次发送 `ATD`。下一次新的 SOS 不会复用已关闭的 socket，避免 `AT+CIPSEND` 返回 `+CIPERROR: 4`。
+
+平台在线时，心跳 `CIPSEND` 与 `CIPRXGET` 下行读取必须串行：心跳结果先完成并消费，才可读取已到达的下行通知；下行读取未完成时不得开始新心跳。拨号、通话和 `AT+CEER` 判定期间暂停平台 AT 事务，避免下行读取覆盖通话事务结果。该仲裁修复待实板长时间心跳回归验证。
+
+后续仅在用户重新授权号码与测试时机后，将 `MODEM_AT_CFG_VOICE_RETRY_ENABLED` 设为 `1U`，并使用关闭语音留言的关机号码、或其他可控失败号码。测试应确认首次没有进入 `VOICE CALL: BEGIN` 或 `+CLCC: ...,0,...`，且 `AT+CEER` 返回失败原因；随后依次核对 `VOICE_RETRY_WAIT`、10 秒后的 `VOICE_RETRY_START` 与第二次 `ATD`。第二次拨号可接通后挂断，并应以 `16` 或 `31` 结束且不再重拨。
 
 ## 当前完成度与下一步
 
@@ -261,4 +285,4 @@ sequenceDiagram
 | 平台心跳 | 已实板验证 | ONLINE 空闲 25 秒后发送候选 43 字节 `0x02` 心跳帧，连续收到 `heartbeat_ack`；与下行接收、MSD 和 KL15 休眠互斥。|
 | MSD 上报 | 已实板验证 | 发送 116 字节候选 MSD 帧，实测 `+CIPSEND: 0,116,116` 后读取并解析到 121 字节 `msd_ack`。|
 | ATD / 单次拨号 | 已实现，实板已振铃 | `msd_ack` 后已观察到 `+CLCC` 状态 `3`；本次被叫未接听，后续收到状态 `6`、`VOICE CALL: END` 与 `NO CARRIER`。|
-| 拨号失败重试 | 待实现 | SRS 要求 10s/30s/120s、至少 60min 的独立语音重试；当前不自动重复外呼。|
+| 拨号失败重试 | 已实现，默认关闭 | 重试状态机保留；样机以 `MODEM_AT_CFG_VOICE_RETRY_ENABLED=0U` 结束失败呼叫，避免个人号码重复外呼。开启后，`17/18/19/21` 与未知原因按 SRS 10s/30s/120s 时序重拨，累计窗口为 60min；尚未实板验证。|

@@ -26,6 +26,7 @@
 #define MODEM_AT_CMD_TCP_SEND_FORMAT            "AT+CIPSEND=%u,%u\r\n"
 #define MODEM_AT_CMD_TCP_CLOSE_FORMAT           "AT+CIPCLOSE=%u\r\n"
 #define MODEM_AT_CMD_PDP_CLOSE                  "AT+NETCLOSE\r\n"
+#define MODEM_AT_CMD_EXTENDED_ERROR_REPORT      "AT+CEER\r\n"
 
 /* Dynamic commands must be assembled with snprintf and these format macros. */
 #define MODEM_AT_CMD_DIAL_FORMAT                "ATD%s;\r\n"
@@ -45,6 +46,7 @@
 #define MODEM_AT_RSP_BUSY                        "BUSY"
 #define MODEM_AT_RSP_NO_CARRIER                  "NO CARRIER"
 #define MODEM_AT_RSP_SEND                        "+CIPSEND:"
+#define MODEM_AT_RSP_EXTENDED_ERROR_REPORT       "+CEER:"
 
 /* Platform values remain candidates until AC7600 TCP verification completes. */
 #define MODEM_PLATFORM_LINK_ID                  0U
@@ -76,6 +78,12 @@
 #define MODEM_AT_CFG_SEND_PROMPT_TIMEOUT_MS      9000U
 #define MODEM_AT_CFG_SEND_RESULT_TIMEOUT_MS      120000U
 #define MODEM_AT_CFG_DIAL_TIMEOUT_MS            30000U
+#define MODEM_AT_CFG_EXTENDED_ERROR_TIMEOUT_MS    9000U
+#define MODEM_AT_CFG_VOICE_RETRY_ENABLED              0U
+#define MODEM_AT_CFG_VOICE_RETRY_FIRST_MS        10000U
+#define MODEM_AT_CFG_VOICE_RETRY_SECOND_MS       30000U
+#define MODEM_AT_CFG_VOICE_RETRY_LATER_MS       120000U
+#define MODEM_AT_CFG_VOICE_RETRY_WINDOW_MS     3600000UL
 #define MODEM_AT_CFG_SEND_TIMEOUT_MS            2000U
 #define MODEM_PLATFORM_HEARTBEAT_PERIOD_MS      25000U
 

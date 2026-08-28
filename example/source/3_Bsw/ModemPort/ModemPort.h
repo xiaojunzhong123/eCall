@@ -23,6 +23,7 @@ typedef enum
     MODEM_PORT_VOICE_EVENT_NONE = 0U,
     MODEM_PORT_VOICE_EVENT_PROGRESS,
     MODEM_PORT_VOICE_EVENT_CONNECTED,
+    MODEM_PORT_VOICE_EVENT_DISCONNECTED,
     MODEM_PORT_VOICE_EVENT_ENDED,
     MODEM_PORT_VOICE_EVENT_FAILED
 } ModemPortVoiceEvent_t;
@@ -43,6 +44,8 @@ const char *ModemPort_GetLastDataLine(void);
 uint8_t ModemPort_TakeRxDataEvent(uint8_t *pu8LinkId);
 /* Return and clear one PDP deactivation notification. */
 uint8_t ModemPort_TakePdnDeactivation(void);
+/* Return and clear one TCP link-close notification. */
+uint8_t ModemPort_TakeTcpClosed(void);
 /* Return and clear one AC7600 voice-call result event. */
 ModemPortVoiceEvent_t ModemPort_TakeVoiceEvent(void);
 void ModemPort_ClearFailure(void);

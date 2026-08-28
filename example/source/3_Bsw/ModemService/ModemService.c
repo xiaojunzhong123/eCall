@@ -20,6 +20,7 @@ typedef struct
 {
     uint8_t u8EmergencyRequestPending;
     uint8_t u8NetworkSleepRequested;
+    uint8_t u8TcpRecoveryRequested;
     uint32_t u32NetworkSleepHoldMs;
 } ModemServiceRuntime_t;
 
@@ -31,6 +32,35 @@ typedef struct
 
 static ModemServiceRuntime_t s_mSvcRun;
 static ModemServiceStatus_t s_mSvcSts;
+
+/*******************************************************
+  * Name    :ModemService_IsVoiceCallInProgress
+  * Author  :LoH
+  * Function:Return whether TCP recovery must wait to avoid interfering with voice setup or audio.
+  * Version :V1.0.0
+  * Data    :2026.08.28
+*******************************************************/
+static uint8_t ModemService_IsVoiceCallInProgress(void)
+{
+    return ((s_mSvcSts.enCallState == MODEM_CALL_DIALING)
+            || (s_mSvcSts.enCallState == MODEM_CALL_ACTIVE)) ? 1U : 0U;
+}
+
+/*******************************************************
+  * Name    :ModemService_EnterTcpRecovery
+  * Author  :LoH
+  * Function:Restart platform transport after an AC7600 link-close notification.
+  * Version :V1.0.0
+  * Data    :2026.08.28
+*******************************************************/
+static void ModemService_EnterTcpRecovery(void)
+{
+    ModemPlatform_Reset();
+    ModemNetwork_Start();
+    s_mSvcSts.enServiceState = MODEM_SERVICE_NETWORK_STARTUP;
+    s_mSvcRun.u8TcpRecoveryRequested = 0U;
+    HMI_LOG_MODEM("TCP_CLOSED_RESTART\r\n");
+}
 
 /*******************************************************
   * Name    :ModemService_EnterNetworkSleep
@@ -236,14 +266,26 @@ void ModemService_Process(void)
     {
         if (s_mSvcSts.enServiceState != MODEM_SERVICE_SLEEP)
         {
-            HMI_LOG_MODEM("PDN_DEACT_RESTART\r\n");
-            ModemNetwork_Start();
-            s_mSvcSts.enServiceState = MODEM_SERVICE_NETWORK_STARTUP;
+            s_mSvcRun.u8TcpRecoveryRequested = 1U;
+            HMI_LOG_MODEM("PDN_DEACT_DETECTED\r\n");
         }
         else
         {
             /* Do not wake a KL15-controlled sleeping network for a stale URC. */
         }
+    }
+
+    if (ModemPort_TakeTcpClosed() != 0U)
+    {
+        s_mSvcRun.u8TcpRecoveryRequested = 1U;
+        HMI_LOG_MODEM("TCP_CLOSED_DETECTED\r\n");
+    }
+
+    if ((s_mSvcRun.u8TcpRecoveryRequested != 0U)
+        && (s_mSvcSts.enServiceState != MODEM_SERVICE_SLEEP)
+        && (ModemService_IsVoiceCallInProgress() == 0U))
+    {
+        ModemService_EnterTcpRecovery();
     }
 
     switch (s_mSvcSts.enServiceState)
@@ -257,13 +299,21 @@ void ModemService_Process(void)
             break;
 
         case MODEM_SERVICE_PLATFORM_ACTIVE:
-            u8PlatformWasOnline = ModemPlatform_IsOnline();
-            ModemService_ProcessPlatform();
-            if ((u8PlatformWasOnline != 0U)
-                && (s_mSvcSts.enServiceState == MODEM_SERVICE_PLATFORM_ACTIVE)
-                && (ModemPlatform_IsOnline() != 0U))
+            if ((s_mSvcRun.u8TcpRecoveryRequested == 0U)
+                && (ModemService_IsVoiceCallInProgress() == 0U))
             {
-                ModemService_ProcessOnlineSleep();
+                u8PlatformWasOnline = ModemPlatform_IsOnline();
+                ModemService_ProcessPlatform();
+                if ((u8PlatformWasOnline != 0U)
+                    && (s_mSvcSts.enServiceState == MODEM_SERVICE_PLATFORM_ACTIVE)
+                    && (ModemPlatform_IsOnline() != 0U))
+                {
+                    ModemService_ProcessOnlineSleep();
+                }
+            }
+            else
+            {
+                /* Do not send platform data while voice work or transport recovery owns the AT port. */
             }
             break;
 
@@ -274,6 +324,19 @@ void ModemService_Process(void)
     }
 
     ModemCall_Process(&s_mSvcSts.enCallState);
+
+    if ((s_mSvcSts.enCallState == MODEM_CALL_ENDED)
+        || (s_mSvcSts.enCallState == MODEM_CALL_FAILED))
+    {
+        s_mSvcRun.u8EmergencyRequestPending = 0U;
+    }
+
+    if ((s_mSvcRun.u8TcpRecoveryRequested != 0U)
+        && (s_mSvcSts.enServiceState != MODEM_SERVICE_SLEEP)
+        && (ModemService_IsVoiceCallInProgress() == 0U))
+    {
+        ModemService_EnterTcpRecovery();
+    }
 }
 
 /*******************************************************
