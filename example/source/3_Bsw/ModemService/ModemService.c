@@ -23,6 +23,8 @@
 #define MODEM_PLATFORM_RX_MAX_LENGTH          750U
 #define MODEM_PLATFORM_REPLY_TYPE_LENGTH       32U
 #define MODEM_PLATFORM_REPLY_LOG_LENGTH        56U
+#define MODEM_PLATFORM_MSD_PAYLOAD_LENGTH      111U
+#define MODEM_PLATFORM_MSD_FRAME_LENGTH        (MODEM_PLATFORM_MSD_PAYLOAD_LENGTH + 5U)
 
 typedef enum
 {
@@ -83,6 +85,15 @@ typedef enum
     MODEM_PLATFORM_HEARTBEAT_STEP_WAIT_RESULT
 } ModemPlatformHeartbeatStep_t;
 
+typedef enum
+{
+    MODEM_MSD_UPLOAD_STEP_PREPARE = 0U,
+    MODEM_MSD_UPLOAD_STEP_QUEUE,
+    MODEM_MSD_UPLOAD_STEP_WAIT_PROMPT,
+    MODEM_MSD_UPLOAD_STEP_SEND,
+    MODEM_MSD_UPLOAD_STEP_WAIT_RESULT
+} ModemMsdUploadStep_t;
+
 typedef struct
 {
     ModemAtSyncStep_t enAtSyncStep;
@@ -91,24 +102,29 @@ typedef struct
     ModemPlatformRegisterStep_t enPlatformRegisterStep;
     ModemPlatformReceiveStep_t enPlatformReceiveStep;
     ModemPlatformHeartbeatStep_t enPlatformHeartbeatStep;
+    ModemMsdUploadStep_t enMsdUploadStep;
     uint16_t u16NetworkProcessCount;
     uint16_t u16CallProcessCount;
     uint8_t u8EmergencyRequestPending;
     uint8_t u8NetworkSleepRequested;
     uint8_t u8TcpOpenRetryCount;
+    uint8_t u8MsdUploadComplete;
     uint32_t u32NetworkSleepHoldMs;
     uint32_t u32TcpOpenRetryHoldMs;
     uint32_t u32HeartbeatHoldMs;
     char acTcpOpenCommand[MODEM_TCP_COMMAND_LENGTH];
     char acRegisterCommand[MODEM_PLATFORM_COMMAND_LENGTH];
     char acHeartbeatCommand[MODEM_PLATFORM_COMMAND_LENGTH];
+    char acMsdCommand[MODEM_PLATFORM_COMMAND_LENGTH];
     char acReceiveLengthCommand[MODEM_PLATFORM_COMMAND_LENGTH];
     char acReceiveDataCommand[MODEM_PLATFORM_COMMAND_LENGTH];
     uint8_t au8RegisterFrame[MODEM_PLATFORM_FRAME_LENGTH];
     uint8_t au8HeartbeatFrame[MODEM_PLATFORM_FRAME_LENGTH];
+    uint8_t au8MsdFrame[MODEM_PLATFORM_MSD_FRAME_LENGTH];
     uint8_t au8PlatformReceiveFrame[MODEM_PLATFORM_RX_MAX_LENGTH];
     uint16_t u16RegisterFrameLength;
     uint16_t u16HeartbeatFrameLength;
+    uint16_t u16MsdFrameLength;
     uint16_t u16PlatformReceiveLength;
     uint16_t u16PlatformReceiveFrameLength;
     uint8_t u8PlatformReceiveLinkId;
@@ -325,6 +341,55 @@ static uint8_t ModemService_PrepareHeartbeatFrame(void)
                                  MODEM_PLATFORM_LINK_ID, s_mSvcRun.u16HeartbeatFrameLength);
     return ((i32CommandLength > 0)
             && ((uint32_t)i32CommandLength < sizeof(s_mSvcRun.acHeartbeatCommand))) ? 1U : 0U;
+}
+
+/*******************************************************
+  * Name    :ModemService_PackU32Be
+  * Author  :LoH
+  * Function:Store one unsigned 32-bit value in big-endian byte order.
+  * Version :V1.0.0
+  * Data    :2026.08.28
+*******************************************************/
+static void ModemService_PackU32Be(uint8_t *pu8Buffer, uint32_t u32Value)
+{
+    pu8Buffer[0] = (uint8_t)(u32Value >> 24U);
+    pu8Buffer[1] = (uint8_t)(u32Value >> 16U);
+    pu8Buffer[2] = (uint8_t)(u32Value >> 8U);
+    pu8Buffer[3] = (uint8_t)u32Value;
+}
+
+/*******************************************************
+  * Name    :ModemService_PrepareMsdFrame
+  * Author  :LoH
+  * Function:Build the reference-compatible candidate 111-byte MSD platform frame.
+  * Version :V1.0.0
+  * Data    :2026.08.28
+*******************************************************/
+static uint8_t ModemService_PrepareMsdFrame(void)
+{
+    int i32CommandLength;
+    uint8_t *pu8Payload;
+
+    (void)memset(s_mSvcRun.au8MsdFrame, 0, sizeof(s_mSvcRun.au8MsdFrame));
+    s_mSvcRun.au8MsdFrame[0] = MODEM_PLATFORM_MSG_MSD;
+    ModemService_PackU32Be(&s_mSvcRun.au8MsdFrame[1], MODEM_PLATFORM_MSD_PAYLOAD_LENGTH);
+    pu8Payload = &s_mSvcRun.au8MsdFrame[5];
+    pu8Payload[0] = MODEM_PLATFORM_MSD_VERSION;
+    pu8Payload[1] = MODEM_PLATFORM_MSD_IDENTIFIER;
+    pu8Payload[2] = s_mSvcRun.stLastMsd.trigger_mask;
+    pu8Payload[3] = MODEM_PLATFORM_MSD_TEST_CALL;
+    pu8Payload[4] = MODEM_PLATFORM_MSD_VEHICLE_TYPE;
+    (void)memcpy(&pu8Payload[5], MODEM_PLATFORM_TEST_VIN, MODEM_PLATFORM_MSD_VIN_LENGTH);
+    pu8Payload[22] = MODEM_PLATFORM_MSD_POWER_TYPE;
+    ModemService_PackU32Be(&pu8Payload[23], s_mSvcRun.stLastMsd.utc_seconds);
+    ModemService_PackU32Be(&pu8Payload[27], (uint32_t)s_mSvcRun.stLastMsd.longitude_e7);
+    ModemService_PackU32Be(&pu8Payload[31], (uint32_t)s_mSvcRun.stLastMsd.latitude_e7);
+    s_mSvcRun.u16MsdFrameLength = MODEM_PLATFORM_MSD_FRAME_LENGTH;
+
+    i32CommandLength = snprintf(s_mSvcRun.acMsdCommand, sizeof(s_mSvcRun.acMsdCommand), MODEM_AT_CMD_TCP_SEND_FORMAT,
+                                 MODEM_PLATFORM_LINK_ID, s_mSvcRun.u16MsdFrameLength);
+    return ((i32CommandLength > 0)
+            && ((uint32_t)i32CommandLength < sizeof(s_mSvcRun.acMsdCommand))) ? 1U : 0U;
 }
 
 /*******************************************************
@@ -589,6 +654,8 @@ static void ModemService_EnterNetworkSleep(void)
     s_mSvcRun.enPlatformReceiveStep = MODEM_PLATFORM_RX_STEP_IDLE;
     s_mSvcRun.enPlatformHeartbeatStep = MODEM_PLATFORM_HEARTBEAT_STEP_WAIT;
     s_mSvcRun.u32HeartbeatHoldMs = 0U;
+    s_mSvcRun.enMsdUploadStep = MODEM_MSD_UPLOAD_STEP_PREPARE;
+    s_mSvcRun.u8MsdUploadComplete = 0U;
     s_mSvcRun.u16NetworkProcessCount = 0U;
 
     if (s_mSvcRun.u8EmergencyRequestPending != 0U)
@@ -1329,7 +1396,10 @@ static void ModemService_ProcessOnline(void)
 
     ModemService_ProcessPlatformHeartbeat();
 
-    if (s_mSvcRun.u8EmergencyRequestPending != 0U)
+    if ((s_mSvcRun.u8EmergencyRequestPending != 0U)
+        && (s_mSvcRun.u8MsdUploadComplete == 0U)
+        && (s_mSvcRun.enPlatformReceiveStep == MODEM_PLATFORM_RX_STEP_IDLE)
+        && (ModemPort_IsIdle() != 0U))
     {
         s_mSvcSts.enNetworkState = MODEM_NETWORK_MSD_UPLOADING;
         s_mSvcRun.u16NetworkProcessCount = 0U;
@@ -1360,13 +1430,99 @@ static void ModemService_ProcessOnline(void)
 /*******************************************************
   * Name    :ModemService_ProcessMsdUploading
   * Author  :LoH
-  * Function:Reserve MSD upload handling until CIPSEND is implemented.
+  * Function:Upload one reference-compatible MSD frame and wait for length confirmation.
   * Version :V1.0.0
-  * Data    :2026.08.27
+  * Data    :2026.08.28
 *******************************************************/
 static void ModemService_ProcessMsdUploading(void)
 {
-    /* Future sequence: CIPSEND prompt, binary MSD payload and confirmation. */
+    switch (s_mSvcRun.enMsdUploadStep)
+    {
+        case MODEM_MSD_UPLOAD_STEP_PREPARE:
+            if (ModemService_PrepareMsdFrame() != 0U)
+            {
+                HMI_LOG_MODEM("MSD_UPLOAD_START\r\n");
+                s_mSvcRun.enMsdUploadStep = MODEM_MSD_UPLOAD_STEP_QUEUE;
+            }
+            else
+            {
+                HMI_LOG_MODEM("MSD_FRAME_FAILED\r\n");
+                ModemService_EnterNetworkSleep();
+            }
+            break;
+
+        case MODEM_MSD_UPLOAD_STEP_QUEUE:
+            ModemPort_ClearFailure();
+            if (ModemPort_QueueCommand(s_mSvcRun.acMsdCommand, MODEM_AT_RSP_PROMPT, MODEM_AT_CFG_SEND_PROMPT_TIMEOUT_MS) != 0U)
+            {
+                s_mSvcRun.enMsdUploadStep = MODEM_MSD_UPLOAD_STEP_WAIT_PROMPT;
+            }
+            else
+            {
+                HMI_LOG_MODEM("MSD_QUEUE_FAILED\r\n");
+                ModemService_EnterNetworkSleep();
+            }
+            break;
+
+        case MODEM_MSD_UPLOAD_STEP_WAIT_PROMPT:
+            if (ModemPort_HasFailure() != 0U)
+            {
+                HMI_LOG_MODEM("MSD_PROMPT_FAILED\r\n");
+                ModemService_EnterNetworkSleep();
+            }
+            else if (ModemPort_IsIdle() != 0U)
+            {
+                s_mSvcRun.enMsdUploadStep = MODEM_MSD_UPLOAD_STEP_SEND;
+            }
+            else
+            {
+                /* Wait for the CIPSEND prompt. */
+            }
+            break;
+
+        case MODEM_MSD_UPLOAD_STEP_SEND:
+            if (ModemPort_SendData(s_mSvcRun.au8MsdFrame, s_mSvcRun.u16MsdFrameLength, MODEM_AT_RSP_SEND, MODEM_AT_CFG_SEND_RESULT_TIMEOUT_MS) != 0U)
+            {
+                s_mSvcRun.enMsdUploadStep = MODEM_MSD_UPLOAD_STEP_WAIT_RESULT;
+            }
+            else
+            {
+                HMI_LOG_MODEM("MSD_SEND_FAILED\r\n");
+                ModemService_EnterNetworkSleep();
+            }
+            break;
+
+        case MODEM_MSD_UPLOAD_STEP_WAIT_RESULT:
+            if (ModemPort_HasFailure() != 0U)
+            {
+                HMI_LOG_MODEM("MSD_RESULT_FAILED\r\n");
+                ModemService_EnterNetworkSleep();
+            }
+            else if (ModemPort_IsIdle() != 0U)
+            {
+                if (ModemService_IsDataSendComplete(ModemPort_GetLastMatchedResponse(), s_mSvcRun.u16MsdFrameLength) != 0U)
+                {
+                    s_mSvcRun.u8MsdUploadComplete = 1U;
+                    s_mSvcSts.enNetworkState = MODEM_NETWORK_ONLINE;
+                    HMI_LOG_MODEM("MSD_UPLOADED_CALL_PENDING\r\n");
+                }
+                else
+                {
+                    HMI_LOG_MODEM("MSD_CONFIRM_FAILED\r\n");
+                    ModemService_EnterNetworkSleep();
+                }
+            }
+            else
+            {
+                /* Wait for +CIPSEND: <link>,<req>,<cnf>. */
+            }
+            break;
+
+        default:
+            HMI_LOG_MODEM("MSD_STEP_UNKNOWN\r\n");
+            ModemService_EnterNetworkSleep();
+            break;
+    }
 }
 
 /*******************************************************
@@ -1423,6 +1579,8 @@ void ModemService_Init(void)
     s_mSvcRun.enPlatformReceiveStep = MODEM_PLATFORM_RX_STEP_IDLE;
     s_mSvcRun.enPlatformHeartbeatStep = MODEM_PLATFORM_HEARTBEAT_STEP_WAIT;
     s_mSvcRun.u32HeartbeatHoldMs = 0U;
+    s_mSvcRun.enMsdUploadStep = MODEM_MSD_UPLOAD_STEP_PREPARE;
+    s_mSvcRun.u8MsdUploadComplete = 0U;
     ModemPort_Init();
 }
 
@@ -1443,11 +1601,12 @@ void ModemService_RequestEmergencyCall(const EcallMsd_t *pstMsd)
         s_mSvcRun.stLastMsd = *pstMsd;
         s_mSvcRun.u16CallProcessCount = 0U;
         s_mSvcRun.u8EmergencyRequestPending = 1U;
+        s_mSvcRun.u8MsdUploadComplete = 0U;
+        s_mSvcRun.enMsdUploadStep = MODEM_MSD_UPLOAD_STEP_PREPARE;
         s_mSvcRun.u8NetworkSleepRequested = 0U;
         if (s_mSvcSts.enNetworkState == MODEM_NETWORK_ONLINE)
         {
-            s_mSvcSts.enNetworkState = MODEM_NETWORK_MSD_UPLOADING;
-            s_mSvcRun.u16NetworkProcessCount = 0U;
+            /* Online processing waits for the active CIPSEND or CIPRXGET transaction to finish. */
         }
         else if (s_mSvcSts.enNetworkState == MODEM_NETWORK_SLEEP)
         {

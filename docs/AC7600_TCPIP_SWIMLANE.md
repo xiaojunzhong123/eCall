@@ -190,7 +190,7 @@ sequenceDiagram
 
 心跳仅在平台接收空闲、没有待上传 MSD、且未请求 KL15 休眠时启动，因此不会与 `CIPRXGET` 或紧急业务竞争 UART AT 事务。CIPSEND 的提示符和长度确认与注册发送完全一致；任一步失败进入现有网络恢复路径。心跳帧内容、25 秒周期仍是 AECS 候选，需看服务器响应后再冻结。
 
-## 阶段 5：MSD、外呼与故障恢复（待实现）
+## 阶段 5：MSD、外呼与故障恢复（MSD 候选已实现）
 
 ```mermaid
 sequenceDiagram
@@ -200,9 +200,13 @@ sequenceDiagram
     participant M as AC7600
 
     E->>S: 冻结 MSD，申请紧急服务
-    S->>P: CIPSEND 命令 / 等待 > / 写 MSD 原始字节
-    M-->>P: +CIPSEND: 0,<req>,<cnf>
-    S->>P: ATD<emergencyNumber>;（号码与时机需授权）
+    S->>P: AT+CIPSEND=0,116（申请固定长度 MSD 帧）
+    M-->>P: >
+    P->>M: 10 + 111 字节 MSD 候选负载
+    M-->>P: OK + +CIPSEND: 0,116,116
+    S->>S: MSD_UPLOADED_CALL_PENDING
+    Note over S,M: 此阶段不发送 ATD
+    S->>P: ATD<emergencyNumber>;（下一阶段，号码与时机需授权）
     M-->>P: 呼叫结果 URC
     S-->>E: 呼叫状态 / 失败重试事件
 
@@ -213,6 +217,10 @@ sequenceDiagram
     M-->>P: +CGEV: ... PDN DEACT ...
     S->>S: 终止当前 AT 事务，AT_SYNC → NETCLOSE/NETOPEN 重建
 ```
+
+当前 MSD 使用 AECS 参考工程的 111 字节负载布局：`version`、`identifier`、触发掩码、测试呼叫、车辆类型、17 字节 VIN、动力类型、UTC、经度、纬度、9 组历史点、Delta-V、乘员和翻滚。当前 TBOX 已有的触发掩码、UTC、经纬度会映射进帧；演示常量使用版本 `1`、标识 `1`、测试呼叫 `1` 与 VIN `LDC12345678900001`，其余当前没有来源的字段显式填零。外层帧使用消息类型 `0x10` 和 4 字节大端长度，因此 CIPSEND 总长度为 116 字节。
+
+`+CIPSEND: 0,116,116` 仅证明模组已完整交付 MSD 给 TCP 栈，后续是否收到 `msd_ack` 仍待实板确认。紧急请求若撞上在途的心跳或下行读取，会等待该单笔事务结束后才进入 MSD，避免并发 AT；成功后服务保持 `CALL_PENDING` 并恢复 `ONLINE`，不会发送或模拟 `ATD`。真实外呼及其 URC、失败重试仍需用户授权。
 
 ## 当前完成度与下一步
 
@@ -229,4 +237,5 @@ sequenceDiagram
 | 接收内容/帧头 | 已实板验证 | 使用 `CIPRXGET=3` 读取最多 750 字节十六进制内容；已收到并通过 127 字节候选 AECS 类型/长度帧头校验。|
 | 平台应答 type | 已实板验证 | 帧头有效后有界提取 JSON `type`；实测注册回包为 `register_ack`，附加字段语义尚未冻结。|
 | 平台心跳 | 已实板验证 | ONLINE 空闲 25 秒后发送候选 43 字节 `0x02` 心跳帧，连续收到 `heartbeat_ack`；与下行接收、MSD 和 KL15 休眠互斥。|
-| MSD / ATD / 重试 | 待实现 | 需要 MSD 格式、号码、呼叫 URC 和重试策略的明确授权。|
+| MSD 上报 | 已实现，待实板验证 | 发送参考兼容的 116 字节候选 MSD 帧；仅以 CIPSEND 长度确认成功。|
+| ATD / 拨号重试 | 待实现 | 需要号码、呼叫 URC、失败重试策略和实板发送时机的明确授权。|
