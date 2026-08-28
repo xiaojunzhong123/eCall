@@ -32,6 +32,8 @@ void ModemPlatform_RequestMsdUpload(const EcallMsd_t *pstMsd);
 void ModemPlatform_Process(uint8_t u8HeartbeatEnabled);
 /* Return whether the private platform workflow is stably online. */
 uint8_t ModemPlatform_IsOnline(void);
+/* Return whether GNSS may use the idle AT port without delaying platform work. */
+uint8_t ModemPlatform_IsBackgroundAllowed(void);
 /* Return and clear one platform workflow result event. */
 ModemPlatformEvent_t ModemPlatform_TakeEvent(void);
 

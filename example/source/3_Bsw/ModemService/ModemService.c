@@ -9,8 +9,10 @@
 #include <string.h>
 #include "Hmi.h"
 #include "ModemCall.h"
+#include "ModemGnss.h"
 #include "ModemNetwork.h"
 #include "ModemPlatform.h"
+#include "ModemPort.h"
 
 #define MODEM_NETWORK_PROCESS_PERIOD_MS     100U
 #define MODEM_NETWORK_SLEEP_HOLD_MS         300000UL
@@ -162,6 +164,7 @@ void ModemService_Init(void)
     ModemNetwork_Init();
     ModemPlatform_Init();
     ModemCall_Init();
+    ModemGnss_Init();
 }
 
 /*******************************************************
@@ -242,6 +245,12 @@ void ModemService_Process(void)
 {
     uint8_t u8PlatformWasOnline;
 
+    if (ModemGnss_IsBusy() != 0U)
+    {
+        ModemGnss_Process(0U);
+        return;
+    }
+
     ModemNetwork_Process((ModemService_IsVoiceCallInProgress() == 0U) ? 1U : 0U);
 
     if (ModemNetwork_TakeTransportRecoveryStarted() != 0U)
@@ -297,6 +306,17 @@ void ModemService_Process(void)
         || (s_mSvcSts.enCallState == MODEM_CALL_FAILED))
     {
         s_mSvcRun.u8EmergencyRequestPending = 0U;
+    }
+
+    if ((s_mSvcSts.enServiceState == MODEM_SERVICE_PLATFORM_ACTIVE)
+        && (s_mSvcRun.u8EmergencyRequestPending == 0U)
+        && (s_mSvcRun.u8NetworkSleepRequested == 0U)
+        && ((s_mSvcSts.enCallState == MODEM_CALL_IDLE)
+            || (s_mSvcSts.enCallState == MODEM_CALL_ENDED)
+            || (s_mSvcSts.enCallState == MODEM_CALL_FAILED))
+        && (ModemPlatform_IsBackgroundAllowed() != 0U))
+    {
+        ModemGnss_Process(1U);
     }
 
 }

@@ -227,6 +227,24 @@ static void ModemPlatform_PackU32Be(uint8_t *pu8Buffer, uint32_t u32Value)
 }
 
 /*******************************************************
+  * Name    :ModemPlatform_E7ToAecsRaw
+  * Author  :LoH
+  * Function:Convert signed degrees times 1e7 to AECS degrees times 3600000.
+  * Version :V1.0.0
+  * Data    :2026.08.29
+*******************************************************/
+static int32_t ModemPlatform_E7ToAecsRaw(int32_t i32CoordinateE7)
+{
+    int64_t i64Scaled = (int64_t)i32CoordinateE7 * 9;
+
+    if (i64Scaled >= 0)
+    {
+        return (int32_t)((i64Scaled + 12) / 25);
+    }
+    return (int32_t)(-(((-i64Scaled) + 12) / 25));
+}
+
+/*******************************************************
   * Name    :ModemPlatform_PrepareMsdFrame
   * Author  :LoH
   * Function:Build the reference-compatible candidate 111-byte MSD platform frame.
@@ -237,6 +255,7 @@ static uint8_t ModemPlatform_PrepareMsdFrame(void)
 {
     int i32CommandLength;
     uint8_t *pu8Payload;
+    uint8_t u8Index;
 
     (void)memset(s_mPlatRun.au8MsdFrame, 0, sizeof(s_mPlatRun.au8MsdFrame));
     s_mPlatRun.au8MsdFrame[0] = MODEM_PLATFORM_MSG_MSD;
@@ -250,8 +269,19 @@ static uint8_t ModemPlatform_PrepareMsdFrame(void)
     (void)memcpy(&pu8Payload[5], MODEM_PLATFORM_TEST_VIN, MODEM_PLATFORM_MSD_VIN_LENGTH);
     pu8Payload[22] = MODEM_PLATFORM_MSD_POWER_TYPE;
     ModemPlatform_PackU32Be(&pu8Payload[23], s_mPlatRun.stLastMsd.utc_seconds);
-    ModemPlatform_PackU32Be(&pu8Payload[27], (uint32_t)s_mPlatRun.stLastMsd.longitude_e7);
-    ModemPlatform_PackU32Be(&pu8Payload[31], (uint32_t)s_mPlatRun.stLastMsd.latitude_e7);
+    ModemPlatform_PackU32Be(&pu8Payload[27],
+                            (uint32_t)ModemPlatform_E7ToAecsRaw(s_mPlatRun.stLastMsd.longitude_e7));
+    ModemPlatform_PackU32Be(&pu8Payload[31],
+                            (uint32_t)ModemPlatform_E7ToAecsRaw(s_mPlatRun.stLastMsd.latitude_e7));
+    for (u8Index = 0U; u8Index < ECALL_GNSS_HISTORY_COUNT; u8Index++)
+    {
+        ModemPlatform_PackU32Be(&pu8Payload[35U + ((uint16_t)u8Index * 8U)],
+                                (uint32_t)ModemPlatform_E7ToAecsRaw(
+                                    s_mPlatRun.stLastMsd.history_longitude_e7[u8Index]));
+        ModemPlatform_PackU32Be(&pu8Payload[39U + ((uint16_t)u8Index * 8U)],
+                                (uint32_t)ModemPlatform_E7ToAecsRaw(
+                                    s_mPlatRun.stLastMsd.history_latitude_e7[u8Index]));
+    }
     s_mPlatRun.u16MsdFrameLength = MODEM_PLATFORM_MSD_FRAME_LENGTH;
 
     i32CommandLength = snprintf(s_mPlatRun.acMsdCommand, sizeof(s_mPlatRun.acMsdCommand),
@@ -1063,6 +1093,21 @@ void ModemPlatform_Process(uint8_t u8HeartbeatEnabled)
 uint8_t ModemPlatform_IsOnline(void)
 {
     return (s_mPlatSts.enPhase == MODEM_PLATFORM_PHASE_ONLINE) ? 1U : 0U;
+}
+
+/*******************************************************
+  * Name    :ModemPlatform_IsBackgroundAllowed
+  * Author  :LoH
+  * Function:Return whether no receive, heartbeat or emergency upload owns the AT port.
+  * Version :V1.0.0
+  * Data    :2026.08.29
+*******************************************************/
+uint8_t ModemPlatform_IsBackgroundAllowed(void)
+{
+    return ((s_mPlatSts.enPhase == MODEM_PLATFORM_PHASE_ONLINE)
+            && (s_mPlatRun.enReceiveStep == MODEM_PLATFORM_RX_STEP_IDLE)
+            && (s_mPlatRun.enHeartbeatStep == MODEM_PLATFORM_HEARTBEAT_STEP_WAIT)
+            && (s_mPlatRun.u8MsdUploadRequested == 0U)) ? 1U : 0U;
 }
 
 /*******************************************************

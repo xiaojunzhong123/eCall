@@ -12,7 +12,7 @@
 
 /* Initialize GNSS snapshot service. */
 void GnssService_Init(void);
-/* Update GNSS cache in GnssTask context. */
+/* Consume one modem GNSS sample and update current/history cache. */
 void GnssService_Process(void);
 /* Copy the latest GNSS snapshot for an eCall MSD. */
 uint8_t GnssService_GetLatest(EcallMsd_t *pstMsd);

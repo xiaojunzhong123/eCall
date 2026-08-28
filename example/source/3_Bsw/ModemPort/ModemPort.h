@@ -48,6 +48,8 @@ uint8_t ModemPort_TakePdnDeactivation(void);
 uint8_t ModemPort_TakeTcpClosed(void);
 /* Return and clear one AC7600 voice-call result event. */
 ModemPortVoiceEvent_t ModemPort_TakeVoiceEvent(void);
+/* Clear only the AT transaction failure while preserving asynchronous URC events. */
+void ModemPort_ClearTransactionFailure(void);
 void ModemPort_ClearFailure(void);
 
 #endif

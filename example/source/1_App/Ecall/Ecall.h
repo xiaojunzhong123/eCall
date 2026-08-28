@@ -37,6 +37,7 @@ typedef enum
                                        ECALL_TRIGGER_MASK_CAN)
 
 #define ECALL_MANUAL_CANCEL_WINDOW_MS 10000U
+#define ECALL_GNSS_HISTORY_COUNT       9U
 
 typedef struct
 {
@@ -45,6 +46,8 @@ typedef struct
     int32_t latitude_e7;
     int32_t longitude_e7;
     uint32_t utc_seconds;
+    int32_t history_latitude_e7[ECALL_GNSS_HISTORY_COUNT];
+    int32_t history_longitude_e7[ECALL_GNSS_HISTORY_COUNT];
 } EcallMsd_t;
 
 /* Initialize eCall session state. */

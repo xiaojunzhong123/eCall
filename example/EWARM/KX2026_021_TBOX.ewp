@@ -2420,6 +2420,9 @@
                     <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemCall.c</name>
                 </file>
                 <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemGnss.c</name>
+                </file>
+                <file>
                     <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemNetwork.c</name>
                 </file>
                 <file>

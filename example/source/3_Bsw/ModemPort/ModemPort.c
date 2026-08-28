@@ -619,7 +619,14 @@ ModemPortVoiceEvent_t ModemPort_TakeVoiceEvent(void)
     return enVoiceEvent;
 }
 
-void ModemPort_ClearFailure(void)
+/*******************************************************
+  * Name    :ModemPort_ClearTransactionFailure
+  * Author  :LoH
+  * Function:Clear transaction failure state while preserving asynchronous URC events.
+  * Version :V1.0.0
+  * Data    :2026.08.29
+*******************************************************/
+void ModemPort_ClearTransactionFailure(void)
 {
     if (m_stModemPortRuntime.u8Active == 0U)
     {
@@ -627,12 +634,27 @@ void ModemPort_ClearFailure(void)
         m_stModemPortRuntime.u8WriteIndex = 0U;
         m_stModemPortRuntime.u8Count = 0U;
         m_stModemPortStatus.u8HasFailure = 0U;
+        m_stModemPortStatus.enLastResult = MODEM_PORT_RESULT_IDLE;
+        m_stModemPortStatus.acLastMatchedResponse[0] = '\0';
+        m_stModemPortStatus.acLastDataLine[0] = '\0';
+    }
+}
+
+/*******************************************************
+  * Name    :ModemPort_ClearFailure
+  * Author  :LoH
+  * Function:Clear AT transaction state and all buffered asynchronous events.
+  * Version :V1.0.0
+  * Data    :2026.08.29
+*******************************************************/
+void ModemPort_ClearFailure(void)
+{
+    if (m_stModemPortRuntime.u8Active == 0U)
+    {
+        ModemPort_ClearTransactionFailure();
         m_stModemPortStatus.u8RxDataPending = 0U;
         m_stModemPortStatus.u8PdnDeactivated = 0U;
         m_stModemPortStatus.u8TcpClosed = 0U;
         m_stModemPortStatus.enVoiceEvent = MODEM_PORT_VOICE_EVENT_NONE;
-        m_stModemPortStatus.enLastResult = MODEM_PORT_RESULT_IDLE;
-        m_stModemPortStatus.acLastMatchedResponse[0] = '\0';
-        m_stModemPortStatus.acLastDataLine[0] = '\0';
     }
 }

@@ -1,7 +1,7 @@
 /*******************************************************
   * Name    :GnssTask.c
   * Author  :LoH
-  * Function:GNSS snapshot RTOS task entry and creation.
+  * Function:GNSS cache RTOS task entry and creation.
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
@@ -14,7 +14,7 @@
 /*******************************************************
   * Name    :GnssTask_Entry
   * Author  :LoH
-  * Function:Update GNSS data and report eCall GNSS result.
+  * Function:Update GNSS cache and immediately report its snapshot to eCall.
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/

@@ -26,11 +26,18 @@ static uint8_t m_u8CallRequestSent = 0U;
 *******************************************************/
 static void Ecall_ClearMsd(void)
 {
+    uint8_t u8Index;
+
     m_stEcallMsd.trigger_mask = 0U;
     m_stEcallMsd.gnss_valid = 0U;
     m_stEcallMsd.latitude_e7 = 0;
     m_stEcallMsd.longitude_e7 = 0;
     m_stEcallMsd.utc_seconds = 0U;
+    for (u8Index = 0U; u8Index < ECALL_GNSS_HISTORY_COUNT; u8Index++)
+    {
+        m_stEcallMsd.history_latitude_e7[u8Index] = 0;
+        m_stEcallMsd.history_longitude_e7[u8Index] = 0;
+    }
 }
 
 /*******************************************************
@@ -194,6 +201,8 @@ void Ecall_OnManualCancelTimeout(void)
 *******************************************************/
 void Ecall_OnGnssResult(const EcallMsd_t *pstMsd, uint8_t u8Valid)
 {
+    uint8_t u8TriggerMask;
+
     if ((m_u8SessionActive == 0U) || (m_enEcallState != ECALL_STATE_WAIT_GNSS))
     {
         return;
@@ -201,9 +210,9 @@ void Ecall_OnGnssResult(const EcallMsd_t *pstMsd, uint8_t u8Valid)
 
     if (pstMsd != NULL)
     {
-        m_stEcallMsd.latitude_e7 = pstMsd->latitude_e7;
-        m_stEcallMsd.longitude_e7 = pstMsd->longitude_e7;
-        m_stEcallMsd.utc_seconds = pstMsd->utc_seconds;
+        u8TriggerMask = m_stEcallMsd.trigger_mask;
+        m_stEcallMsd = *pstMsd;
+        m_stEcallMsd.trigger_mask = u8TriggerMask;
     }
     m_stEcallMsd.gnss_valid = u8Valid;
 
