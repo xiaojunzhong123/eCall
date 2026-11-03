@@ -1,47 +1,38 @@
 /*******************************************************
   * Name    :Hmi.c
-  * Author  :LoH
-  * Function:TBOX HMI log implementation with static ring buffer.
+  * Author  :xiaojunzhong
+  * Function:多任务日志静态队列及 RTT 输出；不能代替乘员提示。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
 #include "FreeRTOS.h"
-#include "Gpio.h"
 #include "Hmi.h"
+#include "OutputService.h"
 #include "SEGGER_RTT.h"
 #include "cmsis_os.h"
 
 #define HMI_LOG_SLOT_COUNT             32U
 #define HMI_LOG_SLOT_LENGTH            64U
 #define HMI_TIMESTAMP_LENGTH            14U
-#define HMI_PROCESS_PERIOD_MS           10U
-#define HMI_CANCEL_WINDOW_LED_PERIOD_MS 500U
 
 typedef struct
 {
-    uint8_t au8Text[HMI_LOG_SLOT_LENGTH];
-    uint8_t u8Length;
-    uint32_t u32TimestampMs;
+    uint8_t au8Text[HMI_LOG_SLOT_LENGTH]; /* 日志文字的固定容量副本。 */
+    uint8_t u8Length; /* 当前有效字节数。 */
+    uint32_t u32TimestampMs; /* 日志入队时的单调毫秒时刻。 */
 } HmiLogSlot_t;
 
-typedef struct
-{
-    uint8_t u8Active;
-    uint8_t u8LastActive;
-    uint16_t u16ElapsedMs;
-} HmiEcallCancelIndicator_t;
 
-static HmiLogSlot_t m_astLogSlot[HMI_LOG_SLOT_COUNT];
-static uint8_t m_u8ReadIndex = 0U;
-static uint8_t m_u8WriteIndex = 0U;
-static uint8_t m_u8LogCount = 0U;
-static uint16_t m_u16DropCount = 0U;
-static HmiEcallCancelIndicator_t m_stEcallCancelIndicator;
+static HmiLogSlot_t m_astLogSlot[HMI_LOG_SLOT_COUNT]; /* 固定日志槽，业务任务写入，AppTask 消费。 */
+static uint8_t m_u8ReadIndex = 0U; /* 日志环形队列读取位置。 */
+static uint8_t m_u8WriteIndex = 0U; /* 日志环形队列写入位置。 */
+static uint8_t m_u8LogCount = 0U; /* 当前日志槽占用数。 */
+static uint16_t m_u16DropCount = 0U; /* 因队列已满而丢弃的日志数量。 */
 
 /*******************************************************
   * Name    :Hmi_Write
-  * Author  :LoH
-  * Function:Send one complete log record through J-Link RTT.
+  * Author  :xiaojunzhong
+  * Function:通过 RTT 输出一条日志；只由日志消费任务调用，不直接占用模组串口。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
@@ -52,18 +43,18 @@ static void Hmi_Write(const uint8_t *pu8Text, uint8_t u8Length)
 
 /*******************************************************
   * Name    :Hmi_WriteTimestamp
-  * Author  :LoH
-  * Function:Format and send one relative log timestamp.
+  * Author  :xiaojunzhong
+  * Function:将单调毫秒时间格式化为秒和毫秒，输出日志时间前缀。
   * Version :V1.0.0
   * Data    :2026.08.27
 *******************************************************/
 static void Hmi_WriteTimestamp(uint32_t u32TimestampMs)
 {
-    uint8_t au8Timestamp[HMI_TIMESTAMP_LENGTH];
-    uint32_t u32Seconds;
-    uint32_t u32Milliseconds;
-    uint32_t u32Divisor;
-    uint8_t u8Index;
+    uint8_t au8Timestamp[HMI_TIMESTAMP_LENGTH]; /* 日志时间前缀字符数组。 */
+    uint32_t u32Seconds; /* 秒分量或待推进的秒数。 */
+    uint32_t u32Milliseconds; /* 一秒内的毫秒分量。 */
+    uint32_t u32Divisor; /* 十进制逐位转换的除数。 */
+    uint8_t u8Index; /* 当前数组或通道索引。 */
 
     u32Seconds = u32TimestampMs / 1000U;
     u32Milliseconds = u32TimestampMs % 1000U;
@@ -88,50 +79,9 @@ static void Hmi_WriteTimestamp(uint32_t u32TimestampMs)
 }
 
 /*******************************************************
-  * Name    :Hmi_ProcessEcallCancelIndicator
-  * Author  :LoH
-  * Function:Drive LED2 during manual cancel window.
-  * Version :V1.0.0
-  * Data    :2026.08.26
-*******************************************************/
-static void Hmi_ProcessEcallCancelIndicator(void)
-{
-    uint8_t u8Active;
-
-    portENTER_CRITICAL();
-    u8Active = m_stEcallCancelIndicator.u8Active;
-    portEXIT_CRITICAL();
-
-    if (u8Active != 0U)
-    {
-        if (m_stEcallCancelIndicator.u8LastActive == 0U)
-        {
-            GPIO_SetOutputState(E_OUTPUT_LED2, HIGH);
-            m_stEcallCancelIndicator.u8LastActive = 1U;
-            m_stEcallCancelIndicator.u16ElapsedMs = 0U;
-        }
-        else
-        {
-            m_stEcallCancelIndicator.u16ElapsedMs += HMI_PROCESS_PERIOD_MS;
-            if (m_stEcallCancelIndicator.u16ElapsedMs >= HMI_CANCEL_WINDOW_LED_PERIOD_MS)
-            {
-                GPIO_SetOutPutTogglePin(E_OUTPUT_LED2);
-                m_stEcallCancelIndicator.u16ElapsedMs = 0U;
-            }
-        }
-    }
-    else
-    {
-        GPIO_SetOutputState(E_OUTPUT_LED2, LOW);
-        m_stEcallCancelIndicator.u8LastActive = 0U;
-        m_stEcallCancelIndicator.u16ElapsedMs = 0U;
-    }
-}
-
-/*******************************************************
   * Name    :Hmi_Init
-  * Author  :LoH
-  * Function:Reset HMI log ring buffer runtime data.
+  * Author  :xiaojunzhong
+  * Function:初始化 RTT 和静态日志环形队列，清零读写索引及丢弃计数。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
@@ -142,23 +92,19 @@ void Hmi_Init(void)
     m_u8WriteIndex = 0U;
     m_u8LogCount = 0U;
     m_u16DropCount = 0U;
-    m_stEcallCancelIndicator.u8Active = 0U;
-    m_stEcallCancelIndicator.u8LastActive = 0U;
-    m_stEcallCancelIndicator.u16ElapsedMs = 0U;
-    GPIO_SetOutputState(E_OUTPUT_LED2, LOW);
 }
 
 /*******************************************************
   * Name    :Hmi_Log
-  * Author  :LoH
-  * Function:Copy one log record into static ring buffer.
+  * Author  :xiaojunzhong
+  * Function:在临界区复制日志到固定槽；队列满则统计丢弃，不阻塞业务任务。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
 void Hmi_Log(const char *pcText)
 {
-    uint8_t u8Length = 0U;
-    uint8_t u8Index;
+    uint8_t u8Length = 0U; /* 当前有效字节数。 */
+    uint8_t u8Index; /* 当前数组或通道索引。 */
 
     if (pcText == 0)
     {
@@ -198,15 +144,15 @@ void Hmi_Log(const char *pcText)
 
 /*******************************************************
   * Name    :Hmi_LogWithPrefix
-  * Author  :LoH
-  * Function:Merge module prefix and text into one record.
+  * Author  :xiaojunzhong
+  * Function:组合模块前缀和正文后入队，避免多任务日志交叉。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
 void Hmi_LogWithPrefix(const char *pcPrefix, const char *pcText)
 {
-    uint8_t au8Text[HMI_LOG_SLOT_LENGTH];
-    uint8_t u8Index = 0U;
+    uint8_t au8Text[HMI_LOG_SLOT_LENGTH]; /* 日志文字的固定容量副本。 */
+    uint8_t u8Index = 0U; /* 当前数组或通道索引。 */
 
     if ((pcPrefix == 0) || (pcText == 0))
     {
@@ -227,17 +173,17 @@ void Hmi_LogWithPrefix(const char *pcPrefix, const char *pcText)
 
 /*******************************************************
   * Name    :Hmi_Process
-  * Author  :LoH
-  * Function:Transmit one log record in AppTask context.
+  * Author  :xiaojunzhong
+  * Function:AppTask 每周期取出并输出一条日志，限制单周期输出开销。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
 void Hmi_Process(void)
 {
-    uint8_t au8Text[HMI_LOG_SLOT_LENGTH];
-    uint8_t u8Length = 0U;
-    uint8_t u8Index;
-    uint32_t u32TimestampMs = 0U;
+    uint8_t au8Text[HMI_LOG_SLOT_LENGTH]; /* 日志文字的固定容量副本。 */
+    uint8_t u8Length = 0U; /* 当前有效字节数。 */
+    uint8_t u8Index; /* 当前数组或通道索引。 */
+    uint32_t u32TimestampMs = 0U; /* 日志入队时的单调毫秒时刻。 */
 
     portENTER_CRITICAL();
     if (m_u8LogCount != 0U)
@@ -264,21 +210,20 @@ void Hmi_Process(void)
         Hmi_WriteTimestamp(u32TimestampMs);
         Hmi_Write(au8Text, u8Length);
     }
-    Hmi_ProcessEcallCancelIndicator();
 }
 
 /*******************************************************
   * Name    :Hmi_ShowTaskStarted
-  * Author  :LoH
-  * Function:Build and submit task-started status message.
+  * Author  :xiaojunzhong
+  * Function:构造任务启动日志，日志出现不等于该任务全部功能已验证。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
 void Hmi_ShowTaskStarted(const char *pcTaskName)
 {
 #if (HMI_LOG_TASK_ENABLE != 0U)
-    uint8_t au8Text[HMI_LOG_SLOT_LENGTH];
-    uint8_t u8Index = 0U;
+    uint8_t au8Text[HMI_LOG_SLOT_LENGTH]; /* 日志文字的固定容量副本。 */
+    uint8_t u8Index = 0U; /* 当前数组或通道索引。 */
     const char *pcSuffix = " started\r\n";
 
     if (pcTaskName == 0)
@@ -303,10 +248,10 @@ void Hmi_ShowTaskStarted(const char *pcTaskName)
 
 /*******************************************************
   * Name    :Hmi_ShowEcallState
-  * Author  :LoH
-  * Function:Convert eCall state to a module log message.
-  * Version :V1.0.0
-  * Data    :2026.08.26
+  * Author  :xiaojunzhong
+  * Function:输出 MCU 事件阶段；数据交付完成不代表模组呼叫完成。
+  * Version :V1.1.0
+  * Data    :2026.11.01
 *******************************************************/
 void Hmi_ShowEcallState(EcallState_t enState)
 {
@@ -319,21 +264,9 @@ void Hmi_ShowEcallState(EcallState_t enState)
     {
         HMI_LOG_ECALL("MANUAL_CANCEL_WINDOW\r\n");
     }
-    else if (enState == ECALL_STATE_WAIT_GNSS)
+    else if (enState == ECALL_STATE_DATA_PENDING)
     {
-        HMI_LOG_ECALL("WAIT_GNSS\r\n");
-    }
-    else if (enState == ECALL_STATE_BUILD_MSD)
-    {
-        HMI_LOG_ECALL("BUILD_MSD\r\n");
-    }
-    else if (enState == ECALL_STATE_WAIT_CALL_ACTIVE)
-    {
-        HMI_LOG_ECALL("WAIT_CALL_ACTIVE\r\n");
-    }
-    else if (enState == ECALL_STATE_IN_CALL)
-    {
-        HMI_LOG_ECALL("IN_CALL\r\n");
+        HMI_LOG_ECALL("DATA_PENDING\r\n");
     }
     else if (enState == ECALL_STATE_COMPLETE)
     {
@@ -354,8 +287,8 @@ void Hmi_ShowEcallState(EcallState_t enState)
 
 /*******************************************************
   * Name    :Hmi_ShowText
-  * Author  :LoH
-  * Function:Submit plain HMI log message.
+  * Author  :xiaojunzhong
+  * Function:将文本提交到日志队列；日志不等同实际乘员显示。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
@@ -366,14 +299,12 @@ void Hmi_ShowText(const char *pcText)
 
 /*******************************************************
   * Name    :Hmi_SetEcallCancelWindow
-  * Author  :LoH
-  * Function:Set manual eCall cancel-window LED indication.
+  * Author  :xiaojunzhong
+  * Function:转交手动取消窗口提示意图，当前物理提示实现仍是预留。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
 void Hmi_SetEcallCancelWindow(uint8_t u8Active)
 {
-    portENTER_CRITICAL();
-    m_stEcallCancelIndicator.u8Active = u8Active;
-    portEXIT_CRITICAL();
+    OutputService_SetEcallCancelWindow(u8Active);
 }

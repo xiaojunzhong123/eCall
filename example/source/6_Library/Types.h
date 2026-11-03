@@ -54,5 +54,32 @@ typedef enum
     CYCLE,
     CYCEV
 } Msg_Type;
+
+typedef enum
+{
+    RET_OK = 0x00,
+    RET_NOT_OK,
+    RET_RCRRP,
+    RET_PENDING,
+} Return_Type;
+
+typedef enum
+{
+    NO_ERROR = 0,
+    ERROR_RX_PID,
+    ERROR_RX_DATA,
+    ERROR_RX_FRAME,
+    ERROR_RX_CHECKSUM,
+    ERROR_RX_SYNC_FILED,
+    ERROR_NOT_RESPONE,
+} Error_Type;
+
+typedef struct
+{
+    Frame_Type frame;
+    uint32_t   id;
+    uint8_t    len;
+    uint8_t    buff[64];
+} Can_Type;
 #endif
 

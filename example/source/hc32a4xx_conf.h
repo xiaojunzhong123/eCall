@@ -53,7 +53,7 @@ extern "C"
 
 #define LL_ADC_ENABLE                               (DDL_OFF)
 #define LL_AOS_ENABLE                               (DDL_OFF)
-#define LL_CAN_ENABLE                               (DDL_OFF)
+#define LL_CAN_ENABLE                               (DDL_ON)
 #define LL_CLK_ENABLE                               (DDL_ON)
 #define LL_CMP_ENABLE                               (DDL_OFF)
 #define LL_CRC_ENABLE                               (DDL_OFF)
@@ -107,16 +107,16 @@ extern "C"
 /**
  * @brief The following is a list of currently supported BSP boards.
  */
-#define BSP_EV_HC32F4A8_LQFP176                     (11U)
+#define BSP_EV_HC32A4A8_LQFP176                     (11U)
 
 /**
- * @brief The macro BSP_EV_HC32F4XX is used to specify the BSP board currently
+ * @brief The macro BSP_EV_HC32A4XX is used to specify the BSP board currently
  * in use.
  * The value should be set to one of the list of currently supported BSP boards.
  * @note  If there is no supported BSP board or the BSP function is not used,
  * the value needs to be set to 0U.
  */
-#define BSP_EV_HC32F4XX                             (BSP_EV_HC32F4A8_LQFP176)
+#define BSP_EV_HC32A4XX                             (BSP_EV_HC32A4A8_LQFP176)
 
 /**
  * @brief This is the list of BSP components to be used.

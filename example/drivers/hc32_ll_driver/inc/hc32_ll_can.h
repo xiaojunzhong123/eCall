@@ -409,6 +409,8 @@ typedef struct {
  * @{
  */
 #define CAN_FLAG_BUS_OFF                (1UL << 0U)             /*!< Register bit CFG_STAT.BUSOFF. CAN bus off. */
+#define CAN_FLAG_TX_GOING               (1UL << 1U)             /*!< Register bit CFG_STAT.TACTIVE. CAN bus is transmitting. */
+#define CAN_FLAG_RX_GOING               (1UL << 2U)             /*!< Register bit CFG_STAT.RACTIVE. CAN bus is receiving. */
 #define CAN_FLAG_RX_BUF_OVF             (1UL << 5U)             /*!< Register bit RCTRL.ROV. Receive buffer is full and there is a further bit to be stored. At least one frame will be lost. */
 #define CAN_FLAG_TX_BUF_FULL            (1UL << 8U)             /*!< Register bit RTIE.TSFF. Transmit buffers are all full.
                                                                      TTCFG.TTEN == 0 or TCTRL.TTTEM == 0: ALL STB slots are filled.

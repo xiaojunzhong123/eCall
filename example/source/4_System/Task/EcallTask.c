@@ -1,223 +1,169 @@
 /*******************************************************
   * Name    :EcallTask.c
-  * Author  :LoH
-  * Function:TBOX eCall event task, trigger arbitration and task creation.
-  * Version :V1.0.0
-  * Data    :2026.08.26
+  * Author  :xiaojunzhong
+  * Function:唯一执行 eCall 应用状态机；事件队列只负责唤醒，不承载事故数据。
+  * Version :V1.2.0
+  * Data    :2026.11.03
 *******************************************************/
 #include "cmsis_os.h"
 #include "FreeRTOS.h"
 #include "Ecall.h"
-#include "GnssService.h"
 #include "Hmi.h"
 #include "TaskManager.h"
 
+/* 八个轻量通知槽；完整事故数据保存在应用私有静态实例中。
+ * 队列满时通知可丢，但来源位和取消位不丢；最多二十毫秒后再次处理。
+ * 下列锁存变量由任务生产者写、EcallTask 消费，均在临界区内访问。 */
 osMessageQDef(EcallTaskEventQueue, 8U, uint32_t);
-static osMessageQId m_xEcallEventQueue;
-static uint8_t m_u8PendingTriggerMask = 0U;
-static uint8_t m_u8TriggerWakePending = 0U;
+static osMessageQId s_ecTaskQueue;       /* 内核创建的通知队列句柄。 */
+static uint8_t s_ecTaskPendingMask;      /* 尚未合并至应用的三路来源。 */
+static uint8_t s_ecTaskCancelPending;    /* 尚未处理的手动取消意图。 */
 
 /*******************************************************
   * Name    :EcallTask_GetTriggerMask
-  * Author  :LoH
-  * Function:Convert trigger source to pending trigger bit.
-  * Version :V1.0.0
-  * Data    :2026.08.26
+  * Author  :xiaojunzhong
+  * Function:检查来源枚举，非法输入返回零，不生成触发。
+  * Version :V1.2.0
+  * Data    :2026.11.03
 *******************************************************/
 static uint8_t EcallTask_GetTriggerMask(EcallTrigger_t enTrigger)
 {
-    if (enTrigger == ECALL_TRIGGER_MANUAL)
+    switch (enTrigger)
     {
-        return ECALL_TRIGGER_MASK_MANUAL;
-    }
-    else if (enTrigger == ECALL_TRIGGER_AUTO)
-    {
-        return ECALL_TRIGGER_MASK_AUTO;
-    }
-    else if (enTrigger == ECALL_TRIGGER_CAN)
-    {
-        return ECALL_TRIGGER_MASK_CAN;
-    }
-    else
-    {
-        return 0U;
+        case ECALL_TRIGGER_MANUAL:
+            return ECALL_TRIGGER_MASK_MANUAL;
+        case ECALL_TRIGGER_AUTO:
+            return ECALL_TRIGGER_MASK_AUTO;
+        case ECALL_TRIGGER_CAN:
+            return ECALL_TRIGGER_MASK_CAN;
+        default:
+            return 0U;
     }
 }
 
 /*******************************************************
-  * Name    :EcallTask_ProcessPendingTriggers
-  * Author  :LoH
-  * Function:Consume pending trigger sources in task context.
-  * Version :V1.0.0
-  * Data    :2026.08.26
+  * Name    :EcallTask_ProcessPending
+  * Author  :xiaojunzhong
+  * Function:原子取走锁存意图；先处理触发，再取消，保证自动碰撞优先。
+  * Version :V1.2.0
+  * Data    :2026.11.03
 *******************************************************/
-static void EcallTask_ProcessPendingTriggers(void)
+static void EcallTask_ProcessPending(void)
 {
-    uint8_t u8TriggerMask;
-
+    uint8_t u8TriggerMask; /* 本周期合并的来源，不依赖队列通知数量。 */
+    uint8_t u8Cancel;      /* 本周期是否请求取消。 */
     portENTER_CRITICAL();
-    u8TriggerMask = m_u8PendingTriggerMask;
-    m_u8PendingTriggerMask = 0U;
-    m_u8TriggerWakePending = 0U;
+    u8TriggerMask = s_ecTaskPendingMask;
+    u8Cancel = s_ecTaskCancelPending;
+    s_ecTaskPendingMask = 0U;
+    s_ecTaskCancelPending = 0U;
     portEXIT_CRITICAL();
-
     if (u8TriggerMask != 0U)
     {
         Ecall_OnTriggerMask(u8TriggerMask);
+    }
+    if (u8Cancel != 0U)
+    {
+        Ecall_OnManualCancel();
     }
 }
 
 /*******************************************************
   * Name    :EcallTask_Entry
-  * Author  :LoH
-  * Function:Wait events and drive eCall state machine.
-  * Version :V1.0.0
-  * Data    :2026.08.26
+  * Author  :xiaojunzhong
+  * Function:高优先级任务至多等待二十毫秒，再处理意图和当前应用阶段。
+  * Version :V1.2.0
+  * Data    :2026.11.03
 *******************************************************/
 static void EcallTask_Entry(void const *argument)
 {
-    osEvent xEvent;
-    EcallMsd_t stMsd;
-    uint32_t u32CancelWindowDeadline = 0U;
-    uint32_t u32CurrentTick;
-    uint32_t u32WaitMs;
-    uint8_t u8CancelWindowTimerActive = 0U;
-
     (void)argument;
     Hmi_ShowTaskStarted("EcallTask");
-
     for (;;)
     {
-        if (Ecall_GetState() == ECALL_STATE_MANUAL_CANCEL_WINDOW)
-        {
-            u32CurrentTick = osKernelSysTick();
-            if (u8CancelWindowTimerActive == 0U)
-            {
-                u32CancelWindowDeadline = u32CurrentTick + ECALL_MANUAL_CANCEL_WINDOW_MS;
-                u8CancelWindowTimerActive = 1U;
-            }
-
-            if ((int32_t)(u32CancelWindowDeadline - u32CurrentTick) <= 0)
-            {
-                Ecall_OnManualCancelTimeout();
-                u8CancelWindowTimerActive = 0U;
-                continue;
-            }
-            u32WaitMs = u32CancelWindowDeadline - u32CurrentTick;
-        }
-        else
-        {
-            u8CancelWindowTimerActive = 0U;
-            u32WaitMs = osWaitForever;
-        }
-
-        xEvent = osMessageGet(m_xEcallEventQueue, u32WaitMs);
-        if (xEvent.status == osEventMessage)
-        {
-            switch ((EcallTaskEvent_t)xEvent.value.v)
-            {
-                case ECALL_TASK_EVT_TRIGGER_PENDING:
-                    break;
-                case ECALL_TASK_EVT_MANUAL_TRIGGER:
-                    EcallTask_RequestTrigger(ECALL_TRIGGER_MANUAL);
-                    break;
-                case ECALL_TASK_EVT_MANUAL_CANCEL:
-                    Ecall_OnManualCancel();
-                    break;
-                case ECALL_TASK_EVT_AUTO_TRIGGER:
-                    EcallTask_RequestTrigger(ECALL_TRIGGER_AUTO);
-                    break;
-                case ECALL_TASK_EVT_CAN_TRIGGER:
-                    EcallTask_RequestTrigger(ECALL_TRIGGER_CAN);
-                    break;
-                case ECALL_TASK_EVT_GNSS_READY:
-                    (void)Ecall_OnGnssResult(&stMsd, GnssService_GetLatest(&stMsd));
-                    break;
-                case ECALL_TASK_EVT_GNSS_TIMEOUT:
-                    Ecall_OnGnssTimeout();
-                    break;
-                case ECALL_TASK_EVT_CALL_ACTIVE:
-                    Ecall_OnCallActive();
-                    break;
-                case ECALL_TASK_EVT_CALL_ENDED:
-                    Ecall_OnCallEnded();
-                    break;
-                case ECALL_TASK_EVT_CALL_FAILED:
-                    Ecall_OnCallFailed();
-                    break;
-                default:
-                    break;
-            }
-            EcallTask_ProcessPendingTriggers();
-        }
-        else if (xEvent.status == osEventTimeout)
-        {
-            Ecall_OnManualCancelTimeout();
-            u8CancelWindowTimerActive = 0U;
-        }
+        (void)osMessageGet(s_ecTaskQueue, 20U);
+        EcallTask_ProcessPending();
+        Ecall_Process();
     }
 }
 
 /*******************************************************
   * Name    :EcallTask_Create
-  * Author  :LoH
-  * Function:Create eCall event queue and task.
-  * Version :V1.0.0
-  * Data    :2026.08.26
+  * Author  :xiaojunzhong
+  * Function:创建通知队列和原有五百一十二字节任务栈；失败时记录并停止创建。
+  * Version :V1.2.0
+  * Data    :2026.11.03
 *******************************************************/
 void EcallTask_Create(void)
 {
-    m_xEcallEventQueue = osMessageCreate(osMessageQ(EcallTaskEventQueue), NULL);
-    m_u8PendingTriggerMask = 0U;
-    m_u8TriggerWakePending = 0U;
-    osThreadDef(EcallTask, EcallTask_Entry, osPriorityHigh, 0U, 512U);
-    (void)osThreadCreate(osThread(EcallTask), NULL);
-}
-
-/*******************************************************
-  * Name    :EcallTask_PostEvent
-  * Author  :LoH
-  * Function:Queue one non-trigger event for EcallTask.
-  * Version :V1.0.0
-  * Data    :2026.08.26
-*******************************************************/
-void EcallTask_PostEvent(EcallTaskEvent_t enEvent)
-{
-    if (m_xEcallEventQueue != NULL)
+    s_ecTaskPendingMask = 0U;
+    s_ecTaskCancelPending = 0U;
+    s_ecTaskQueue = osMessageCreate(osMessageQ(EcallTaskEventQueue), NULL);
+    if (s_ecTaskQueue == NULL)
     {
-        (void)osMessagePut(m_xEcallEventQueue, (uint32_t)enEvent, 0U);
+        HMI_LOG_ECALL("EVENT_QUEUE_CREATE_FAILED\r\n");
+        return;
+    }
+    osThreadDef(EcallTask, EcallTask_Entry, osPriorityHigh, 0U, 512U);
+    if (osThreadCreate(osThread(EcallTask), NULL) == NULL)
+    {
+        HMI_LOG_ECALL("TASK_CREATE_FAILED\r\n");
     }
 }
 
 /*******************************************************
   * Name    :EcallTask_RequestTrigger
-  * Author  :LoH
-  * Function:Latch trigger source and wake EcallTask once.
-  * Version :V1.0.0
-  * Data    :2026.08.26
+  * Author  :xiaojunzhong
+  * Function:任务上下文锁存合法来源后非阻塞唤醒；ISR 应先交给下层缓冲。
+  * Version :V1.2.0
+  * Data    :2026.11.03
 *******************************************************/
 void EcallTask_RequestTrigger(EcallTrigger_t enTrigger)
 {
-    uint8_t u8TriggerMask;
-    uint8_t u8NeedWake = 0U;
-
-    u8TriggerMask = EcallTask_GetTriggerMask(enTrigger);
-    if (u8TriggerMask == 0U)
+    uint8_t u8Mask = EcallTask_GetTriggerMask(enTrigger); /* 合法配置或来源的位集合。 */
+    if (u8Mask == 0U)
     {
         return;
     }
-
     portENTER_CRITICAL();
-    m_u8PendingTriggerMask |= u8TriggerMask;
-    if (m_u8TriggerWakePending == 0U)
-    {
-        m_u8TriggerWakePending = 1U;
-        u8NeedWake = 1U;
-    }
+    s_ecTaskPendingMask |= u8Mask;
     portEXIT_CRITICAL();
-
-    if ((u8NeedWake != 0U) && (m_xEcallEventQueue != NULL))
+    if (s_ecTaskQueue != NULL)
     {
-        (void)osMessagePut(m_xEcallEventQueue, ECALL_TASK_EVT_TRIGGER_PENDING, 0U);
+        (void)osMessagePut(s_ecTaskQueue, ECALL_TASK_EVT_TRIGGER_PENDING, 0U);
+    }
+}
+
+/*******************************************************
+  * Name    :EcallTask_PostEvent
+  * Author  :xiaojunzhong
+  * Function:将兼容事件转换为可靠锁存意图；不再接受定位和通话通知。
+  * Version :V1.2.0
+  * Data    :2026.11.03
+*******************************************************/
+void EcallTask_PostEvent(EcallTaskEvent_t enEvent)
+{
+    switch (enEvent)
+    {
+        case ECALL_TASK_EVT_MANUAL_TRIGGER:
+            EcallTask_RequestTrigger(ECALL_TRIGGER_MANUAL);
+            break;
+        case ECALL_TASK_EVT_AUTO_TRIGGER:
+            EcallTask_RequestTrigger(ECALL_TRIGGER_AUTO);
+            break;
+        case ECALL_TASK_EVT_CAN_TRIGGER:
+            EcallTask_RequestTrigger(ECALL_TRIGGER_CAN);
+            break;
+        case ECALL_TASK_EVT_MANUAL_CANCEL:
+            portENTER_CRITICAL();
+            s_ecTaskCancelPending = 1U;
+            portEXIT_CRITICAL();
+            if (s_ecTaskQueue != NULL)
+            {
+                (void)osMessagePut(s_ecTaskQueue, ECALL_TASK_EVT_MANUAL_CANCEL, 0U);
+            }
+            break;
+        default:
+            break;
     }
 }

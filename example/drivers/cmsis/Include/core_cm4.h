@@ -198,7 +198,7 @@
     #define __VTOR_PRESENT             1U
     #warning "__VTOR_PRESENT not defined in device header file; using default!"
   #endif
-  
+
   #ifndef __NVIC_PRIO_BITS
     #define __NVIC_PRIO_BITS          3U
     #warning "__NVIC_PRIO_BITS not defined in device header file; using default!"
@@ -444,6 +444,15 @@ typedef struct
  */
 typedef struct
 {
+    uint8_t RESERVED0[4];
+    volatile uint32_t ICTR;                    /*!< Offset: 0x004 (R/W)  Interrupt Controller Type Register */
+    volatile uint32_t ACTLR;                   /*!< Offset: 0x008 (R/W)  Auxiliary Control Register */
+    uint8_t RESERVED1[4];
+    volatile uint32_t SYST_CSR;                /*!< Offset: 0x010 (R/W)  SysTick Control and Status Register */
+    volatile uint32_t SYST_RVR;                /*!< Offset: 0x014 (R/W)  SysTick Reload Value Register */
+    volatile uint32_t SYST_CVR;                /*!< Offset: 0x018 (R/W)  SysTick Current Value Register */
+    volatile uint32_t SYST_CALIB;              /*!< Offset: 0x01C (R/W)  SysTick Calibration Value Register */
+    uint8_t RESERVED2[3296];
   __IM  uint32_t CPUID;                  /*!< Offset: 0x000 (R/ )  CPUID Base Register */
   __IOM uint32_t ICSR;                   /*!< Offset: 0x004 (R/W)  Interrupt Control and State Register */
   __IOM uint32_t VTOR;                   /*!< Offset: 0x008 (R/W)  Vector Table Offset Register */
@@ -463,7 +472,7 @@ typedef struct
   __IM  uint32_t ADR;                    /*!< Offset: 0x04C (R/ )  Auxiliary Feature Register */
   __IM  uint32_t MMFR[4U];               /*!< Offset: 0x050 (R/ )  Memory Model Feature Register */
   __IM  uint32_t ISAR[5U];               /*!< Offset: 0x060 (R/ )  Instruction Set Attributes Register */
-        uint32_t RESERVED0[5U];
+        uint32_t RESERVED3[5U];
   __IOM uint32_t CPACR;                  /*!< Offset: 0x088 (R/W)  Coprocessor Access Control Register */
 } SCB_Type;
 

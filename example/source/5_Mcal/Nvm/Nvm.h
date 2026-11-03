@@ -11,9 +11,6 @@
 #include "Types.h"
 #include "Uds_Def.h"
 /*-------------variable--------------------------*/
-extern uint8_t g_Uds_boot[UDS_BOOT_LEN];
-extern uint8_t g_Uds_app[UDS_APP_LEN];
-extern uint8_t g_Uds_secuAccs[UDS_SECUACCS_LEN];
 extern uint8_t g_Uds_vin[UDS_VIN_LEN];
 
 /*-------------function port--------------------------*/

@@ -1,7 +1,7 @@
 /*******************************************************
   * Name    :CanTask.c
-  * Author  :LoH
-  * Function:CAN service RTOS task entry and creation.
+  * Author  :xiaojunzhong
+  * Function:十毫秒调度 CAN 服务并转发碰撞锁存。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
@@ -12,22 +12,25 @@
 
 /*******************************************************
   * Name    :CanTask_Entry
-  * Author  :LoH
-  * Function:Process CAN service and forward eCall triggers.
-  * Version :V1.0.0
-  * Data    :2026.08.26
+  * Author  :xiaojunzhong
+  * Function:每十毫秒调度 CAN 服务并将碰撞锁存转交可靠触发入口。
+  * Version :V1.1.0
+  * Data    :2026.11.01
 *******************************************************/
 static void CanTask_Entry(void const *argument)
 {
+    uint8_t u8Trigger; /* 本周期取走的一次碰撞意图。 */
+
     (void)argument;
     Hmi_ShowTaskStarted("CanTask");
 
     for (;;)
     {
         CanService_Process();
-        if (CanService_GetMockEcallTrigger() != 0U)
+        u8Trigger = CanService_TakeEcallTrigger();
+        if (u8Trigger != 0U)
         {
-            EcallTask_PostEvent(ECALL_TASK_EVT_CAN_TRIGGER);
+            EcallTask_RequestTrigger(ECALL_TRIGGER_CAN);
         }
         osDelay(10U);
     }
@@ -35,8 +38,8 @@ static void CanTask_Entry(void const *argument)
 
 /*******************************************************
   * Name    :CanTask_Create
-  * Author  :LoH
-  * Function:Create CanTask with real-time RTOS priority.
+  * Author  :xiaojunzhong
+  * Function:创建实时优先级 CAN 任务，沿用原栈配置。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/

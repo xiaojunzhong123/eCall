@@ -17,6 +17,17 @@ example/MDK/*.uvoptx
 *.log
 ~$*.docx
 
+# Local verification, source snapshots and Source Insight databases
+/tmp/
+/si/
+/example/uartLog/
+/example/tbox_src_all.txt
+/example/tree.txt
+
+# IDE-created project backups; keep the actual project definitions tracked
+/example/EWARM/Backup of *
+/example/MDK/Backup of *
+
 # Local-only project rules and design documents
 /AGENTS.md
 /README.md

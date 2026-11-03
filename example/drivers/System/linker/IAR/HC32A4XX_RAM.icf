@@ -1,0 +1,84 @@
+/***********************************************************************************************************************
+ * Project Name: XHSC AUTOSAR MCAL
+ * File Name: HC32A4XX_RAM.icf
+ *
+ * Description: Implementation of 
+ *              AutoSAR Version:         4.4.0
+ *
+ *
+ * Copyright (c) 2022 - 2026 Xiaohua Semiconductor Co., Ltd.
+ * 
+ * All rights reserved.
+ *
+ * This software is licensed by XHSC PLATFORM SOFTWARE LICENSE AGREEMENT (the "License"). By downloading, installing, or
+ * using the Software, you indicate that you accept the terms of the License, and you acknowledge that you have the
+ * authority, for yourself or on behalf of your company, to bind your company to these terms. If you do not agree to all
+ * of the terms of this License, you should not download or install the Software.
+ *
+ **********************************************************************************************************************/
+
+/* Memory Regions */
+define symbol __ICFEDIT_region_SRAMH_start__             = 0x1FFE0000;    /* 124KB */
+define symbol __ICFEDIT_region_SRAMH_end__               = 0x1FFFEFFF;
+
+define symbol __ICFEDIT_region_SRAMH_STACK_start__       = 0x1FFFF000;    /* 4KB */
+define symbol __ICFEDIT_region_SRAMH_STACK_end__         = 0x20000000;
+
+define symbol __ICFEDIT_region_SRAM1_4_start__           = 0x20000000;    /* 382.75KB */
+define symbol __ICFEDIT_region_SRAM1_4_end__             = 0x2005FFFF;
+
+define exported symbol __RAM_INIT             = 0;
+define exported symbol __STACK_END            = __ICFEDIT_region_SRAMH_STACK_start__;
+define exported symbol __STACK_START          = __ICFEDIT_region_SRAMH_STACK_end__;
+define exported symbol __INIT_SRAM_START    = __ICFEDIT_region_SRAM1_4_start__;
+define exported symbol __INIT_SRAM_END      = __ICFEDIT_region_SRAM1_4_end__;
+define exported symbol __INIT_SRAMH_START   = __ICFEDIT_region_SRAMH_start__;
+define exported symbol __INIT_SRAMH_END     = __ICFEDIT_region_SRAMH_STACK_end__-1;
+
+define memory mem with size = 4G;
+define region init_sram_region          = mem:[from __ICFEDIT_region_SRAM1_4_start__ to __ICFEDIT_region_SRAM1_4_end__];
+define region init_sramh_region         = mem:[from __ICFEDIT_region_SRAMH_start__ to __ICFEDIT_region_SRAMH_end__];
+
+define exported symbol __VTABLE_INIT = start(init_sram_region);
+
+initialize manually {
+                     section .intvec,
+		             section .mcal_text.fast.*,
+                     section .mcal_data.fast.*
+                    };
+do not initialize  {
+                    section .data,
+                    section .mcal_data.*,    
+                    section .bss,
+                    section .mcal_bss.*,
+                    section .mcal_bss.fast.*                    
+                   };
+
+/* Flash region */
+define block Initialization_System with fixed order                  { section .startup, section .systeminit };
+define block Data_Code with fixed order                              { section .text, section .mcal_text.* };
+define block Data_ReadOnly with fixed order                          { section .rodata, section .mcal_const_cfg.*, section .mcal_const.* };
+define block Data_InitDataBss with fixed order                       { section .init_table, section .zero_table, section .iar.* };
+define block Rom_Initvectortable with fixed order, alignment = 1024  { section .intvec_init };
+define block Rom_InitSramhCode with fixed order, alignment = 4       { section .mcal_text.fast.*_init };
+define block Rom_InitSramhData with fixed order, alignment = 4       { section .mcal_data.fast.*_init };
+
+/* Sram1_4 region */
+define block Ram_Data with fixed order                         { section .data };
+define block Ram_McalData with fixed order                     { section .mcal_data.* };
+define block Ram_RamCode with fixed order                      { section .acfls_code_rom, section .ramcode* };
+define block Ram_Bss with fixed order, alignment = 64          { section .bss };
+define block Ram_McalBss with fixed order, alignment = 64      { section .mcal_bss.* };
+
+/* SramH region */
+define block SramH_Vectortable with fixed order, alignment = 1024            { section .intvec };
+define block SramH_SramhCode with fixed order, alignment = 4                 { section .mcal_text.fast.* };
+define block SramH_SramhData with fixed order, alignment = 4                 { section .mcal_data.fast.* };
+define block SramH_SramhBss with fixed order, alignment = 4                  { section .mcal_bss.fast.* };
+
+place in init_sram_region             { first block Rom_Initvectortable };
+place in init_sram_region             { block Ram_Data, block Data_ReadOnly, block Data_InitDataBss, block Rom_InitSramhCode, block Rom_InitSramhData, block Ram_McalData, block Ram_RamCode };
+place in init_sram_region             { block Ram_Bss, block Ram_McalBss };
+place in init_sramh_region            { block Initialization_System, block Data_Code };
+place in init_sramh_region            { block SramH_Vectortable, block SramH_SramhCode, block SramH_SramhData, block SramH_SramhBss };
+

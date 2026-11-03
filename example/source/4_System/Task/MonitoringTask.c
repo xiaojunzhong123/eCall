@@ -1,7 +1,7 @@
 /*******************************************************
   * Name    :MonitoringTask.c
-  * Author  :LoH
-  * Function:Reserved IMU monitoring and automatic trigger RTOS task.
+  * Author  :xiaojunzhong
+  * Function:本机碰撞算法调度预留，不伪造自动触发。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
@@ -10,8 +10,8 @@
 
 /*******************************************************
   * Name    :MonitoringTask_Entry
-  * Author  :LoH
-  * Function:Reserve monitoring cycle for collision judgement.
+  * Author  :xiaojunzhong
+  * Function:保留二十毫秒碰撞监测调度入口；当前没有 IMU 判定实现。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
@@ -29,8 +29,8 @@ static void MonitoringTask_Entry(void const *argument)
 
 /*******************************************************
   * Name    :MonitoringTask_Create
-  * Author  :LoH
-  * Function:Create MonitoringTask with above-normal priority.
+  * Author  :xiaojunzhong
+  * Function:创建高于普通级的监测任务，不自动生成碰撞事件。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/

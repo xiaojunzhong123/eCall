@@ -1,0 +1,5 @@
+# Preserve the original bytes of C/H files, including GB2312 comments.
+# The project contains mixed source encodings: do not apply a global
+# working-tree-encoding conversion or line-ending normalization.
+*.c -text
+*.h -text

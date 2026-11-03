@@ -1,13 +1,23 @@
 /*******************************************************
   * Name    :AppTask.c
-  * Author  :LoH
-  * Function:HMI processing and P1 manual eCall trigger task.
+  * Author  :xiaojunzhong
+  * Function:十毫秒调度输入、自检、提示及 SOS 长按判定。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
+/* 流程阅读说明：
+ * 每十毫秒：日志 -> 输入消抖 -> 自检证据 -> 故障确认 -> 提示仲裁 -> 物理输出。
+ * 待机时 SOS 按住两秒产生手动触发；松开后再次按住一秒可在十秒窗口内取消。
+ * 自动/CAN 触发不受手动取消控制；最终仲裁均由 EcallTask 执行。
+ */
+
 #include "cmsis_os.h"
 #include "Hmi.h"
+#include "EcallDiag.h"
+#include "EcallDiagService.h"
+#include "EcallHmi.h"
 #include "InputService.h"
+#include "OutputService.h"
 #include "RteSys.h"
 #include "TaskManager.h"
 
@@ -17,19 +27,19 @@
 
 /*******************************************************
   * Name    :AppTask_Entry
-  * Author  :LoH
-  * Function:Execute HMI processing and P1 application logic.
-  * Version :V1.0.0
-  * Data    :2026.08.26
+  * Author  :xiaojunzhong
+  * Function:调度输入、无冲突诊断、提示仲裁和既有 SOS 逻辑，不等待 AT 或显示完成。
+  * Version :V1.1.0
+  * Data    :2026.11.01
 *******************************************************/
 static void AppTask_Entry(void const *argument)
 {
-    RteSwitchState_t enCurrentSosState;
-    EcallState_t enEcallState;
-    uint16_t u16SosTriggerHoldMs = 0U;
-    uint16_t u16SosCancelHoldMs = 0U;
-    uint8_t u8ManualTriggerSent = 0U;
-    uint8_t u8ManualCancelArmed = 0U;
+    RteSwitchState_t enCurrentSosState; /* 本周期消抖后的 SOS 输入。 */
+    EcallState_t enEcallState; /* 本周期 MCU 事件阶段。 */
+    uint16_t u16SosTriggerHoldMs = 0U; /* SOS 连续按住累计时间，毫秒，达到两秒触发。 */
+    uint16_t u16SosCancelHoldMs = 0U; /* 取消用的再次长按时间，毫秒，达到一秒取消。 */
+    uint8_t u8ManualTriggerSent = 0U; /* 本次按住已发送触发，松开后才重新使能。 */
+    uint8_t u8ManualCancelArmed = 0U; /* 触发按键松开后才允许再次按下取消。 */
 
     (void)argument;
     Hmi_ShowTaskStarted("AppTask");
@@ -38,7 +48,11 @@ static void AppTask_Entry(void const *argument)
     {
         Hmi_Process();
         InputService_Process10ms();
-        enCurrentSosState = (RteSwitchState_t)RteSys_GetU8Sig(RTESYS_U8_SOS_SWITCH_STATE);
+        EcallDiagService_Process();
+        Ecall_DiagProcess();
+        Ecall_HmiProcess();
+        OutputService_Process10ms();
+        enCurrentSosState = RteSys_GetSwitchState(RTESYS_SWITCH_SOS);
         enEcallState = Ecall_GetState();
 
         if (enEcallState == ECALL_STATE_STANDBY)
@@ -46,7 +60,7 @@ static void AppTask_Entry(void const *argument)
             u16SosCancelHoldMs = 0U;
             u8ManualCancelArmed = 0U;
 
-            if (enCurrentSosState == RTE_SWITCH_RELEASED)
+            if (enCurrentSosState == RTE_SWITCH_INACTIVE)
             {
                 u16SosTriggerHoldMs = 0U;
                 u8ManualTriggerSent = 0U;
@@ -74,7 +88,7 @@ static void AppTask_Entry(void const *argument)
         {
             u16SosTriggerHoldMs = 0U;
 
-            if (enCurrentSosState == RTE_SWITCH_RELEASED)
+            if (enCurrentSosState == RTE_SWITCH_INACTIVE)
             {
                 u8ManualCancelArmed = 1U;
                 u16SosCancelHoldMs = 0U;
@@ -113,8 +127,8 @@ static void AppTask_Entry(void const *argument)
 
 /*******************************************************
   * Name    :AppTask_Create
-  * Author  :LoH
-  * Function:Create AppTask with normal RTOS priority.
+  * Author  :xiaojunzhong
+  * Function:创建普通优先级输入、自检及提示任务，沿用原栈配置。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/

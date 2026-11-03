@@ -19,32 +19,32 @@ static volatile uint16_t m_u16RxOverflowCount = 0U;
 /*-------------Function-------------------------------*/
 
 /*******************************************************
-  * Name    :USART4_RxError_IrqCallback
+  * Name    :USART3_RxError_IrqCallback
   * Author  :ZhuSenRong
   * Function:****
   * Version :V1.0.0
   * Data    :2023.12.12
 *******************************************************/
-static void USART4_RxError_IrqCallback(void)
+static void USART3_RxError_IrqCallback(void)
 {
-    if (SET == USART_GetStatus(CM_USART4, (USART_FLAG_PARITY_ERR | USART_FLAG_FRAME_ERR)))
+    if (SET == USART_GetStatus(CM_USART3, (USART_FLAG_PARITY_ERR | USART_FLAG_FRAME_ERR)))
     {
-        (void)USART_ReadData(CM_USART4);
+        (void)USART_ReadData(CM_USART3);
     }
 
-    USART_ClearStatus(CM_USART4, (USART_FLAG_PARITY_ERR | USART_FLAG_FRAME_ERR | USART_FLAG_OVERRUN));
+    USART_ClearStatus(CM_USART3, (USART_FLAG_PARITY_ERR | USART_FLAG_FRAME_ERR | USART_FLAG_OVERRUN));
 }
 
 /*******************************************************
-  * Name    :USART4_RxFull_IrqCallback
+  * Name    :USART3_RxFull_IrqCallback
   * Author  :ZhuSenRong
   * Function:****
   * Version :V1.0.0
   * Data    :2023.12.12
 *******************************************************/
-static void USART4_RxFull_IrqCallback(void)
+static void USART3_RxFull_IrqCallback(void)
 {
-    uint8_t u8Data = (uint8_t)USART_ReadData(CM_USART4);
+    uint8_t u8Data = (uint8_t)USART_ReadData(CM_USART3);
     uint16_t u16NextWriteIndex = m_u16RxWriteIndex + 1U;
 
     if (u16NextWriteIndex >= UART_RX_BUFFER_LENGTH)
@@ -77,33 +77,33 @@ void Uart_Init(void)
     m_u16RxWriteIndex = 0U;
     m_u16RxOverflowCount = 0U;
 
-    GPIO_SetFunc(GPIO_PORT_E, GPIO_PIN_06, GPIO_FUNC_32);//TX
-    GPIO_SetFunc(GPIO_PORT_D, GPIO_PIN_06, GPIO_FUNC_33);//RX
+    GPIO_SetFunc(GPIO_PORT_F, GPIO_PIN_06, GPIO_FUNC_32);//TX
+    GPIO_SetFunc(GPIO_PORT_F, GPIO_PIN_07, GPIO_FUNC_33);//RX
 
-    FCG_Fcg3PeriphClockCmd(FCG3_PERIPH_USART4, ENABLE);
+    FCG_Fcg3PeriphClockCmd(FCG3_PERIPH_USART3, ENABLE);
 
     (void)USART_UART_StructInit(&stcUartInit);
     stcUartInit.u32ClockDiv      = USART_CLK_DIV4;
     stcUartInit.u32Baudrate      = 115200;//230400;//460800;
     stcUartInit.u32OverSampleBit = USART_OVER_SAMPLE_8BIT;
-    if (LL_OK != USART_UART_Init(CM_USART4, &stcUartInit, NULL))
+    if (LL_OK != USART_UART_Init(CM_USART3, &stcUartInit, NULL))
     {
         for (;;)
         {
         }
     }
-    /* Register USART4 RX error and RX full IRQ handlers with checked installation. */
-    if ((LL_OK != INTC_IrqInstallHandle(INT020_IRQn, INT_SRC_USART4_EI,
-                                        DDL_IRQ_PRIO_DEFAULT, &USART4_RxError_IrqCallback))
-        || (LL_OK != INTC_IrqInstallHandle(INT021_IRQn, INT_SRC_USART4_RI,
-                                           DDL_IRQ_PRIO_DEFAULT, &USART4_RxFull_IrqCallback)))
+    /* Register USART3 RX error and RX full IRQ handlers with checked installation. */
+    if ((LL_OK != INTC_IrqInstallHandle(INT020_IRQn, INT_SRC_USART3_EI,
+                                        DDL_IRQ_PRIO_DEFAULT, &USART3_RxError_IrqCallback))
+        || (LL_OK != INTC_IrqInstallHandle(INT021_IRQn, INT_SRC_USART3_RI,
+                                           DDL_IRQ_PRIO_DEFAULT, &USART3_RxFull_IrqCallback)))
     {
         for (;;)
         {
         }
     }
 
-    USART_FuncCmd(CM_USART4, (USART_RX | USART_INT_RX | USART_TX), ENABLE);
+    USART_FuncCmd(CM_USART3, (USART_RX | USART_INT_RX | USART_TX), ENABLE);
 }
 
 /*******************************************************
@@ -129,8 +129,8 @@ Bool Uart_TxData(uint8_t *p_buff, uint8_t len)
 {
     while (len--)
     {
-        USART_WriteData(CM_USART4, *p_buff++);
-        while (RESET == USART_GetStatus(CM_USART4, USART_FLAG_TX_EMPTY))
+        USART_WriteData(CM_USART3, *p_buff++);
+        while (RESET == USART_GetStatus(CM_USART3, USART_FLAG_TX_EMPTY))
         {
         }
     }
@@ -152,7 +152,7 @@ Bool Uart_RxData(uint8_t *p_buff, uint8_t len)
 /*******************************************************
   * Name    :Uart_ReadRxData
   * Author  :LoH
-  * Function:Read available USART4 RX ring-buffer bytes.
+  * Function:Read available USART3 RX ring-buffer bytes.
   * Version :V1.0.0
   * Data    :2026.08.27
 *******************************************************/
@@ -180,7 +180,7 @@ uint8_t Uart_ReadRxData(uint8_t *pu8Buffer, uint8_t u8Length)
 /*******************************************************
   * Name    :Uart_GetRxOverflowCount
   * Author  :LoH
-  * Function:Return USART4 RX ring-buffer overflow count.
+  * Function:Return USART3 RX ring-buffer overflow count.
   * Version :V1.0.0
   * Data    :2026.08.27
 *******************************************************/

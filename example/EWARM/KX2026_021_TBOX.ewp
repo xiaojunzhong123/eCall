@@ -74,7 +74,7 @@
                 </option>
                 <option>
                     <name>OGLastSavedByProductVersion</name>
-                    <state>8.40.1.21529</state>
+                    <state>8.50.9.33458</state>
                 </option>
                 <option>
                     <name>GeneralEnableMisra</name>
@@ -120,12 +120,12 @@
                 </option>
                 <option>
                     <name>GBECoreSlave</name>
-                    <version>27</version>
+                    <version>28</version>
                     <state>39</state>
                 </option>
                 <option>
                     <name>OGUseCmsis</name>
-                    <state>1</state>
+                    <state>0</state>
                 </option>
                 <option>
                     <name>OGUseCmsisDspLib</name>
@@ -137,7 +137,7 @@
                 </option>
                 <option>
                     <name>CoreVariant</name>
-                    <version>27</version>
+                    <version>28</version>
                     <state>39</state>
                 </option>
                 <option>
@@ -156,7 +156,7 @@
                 </option>
                 <option>
                     <name>GFPUCoreSlave2</name>
-                    <version>27</version>
+                    <version>28</version>
                     <state>39</state>
                 </option>
                 <option>
@@ -215,7 +215,7 @@
             <name>ICCARM</name>
             <archiveVersion>2</archiveVersion>
             <data>
-                <version>35</version>
+                <version>36</version>
                 <wantNonLocal>1</wantNonLocal>
                 <debug>0</debug>
                 <option>
@@ -359,18 +359,42 @@
                     <state>$PROJ_DIR$\..\source\6_Library\SeggerRtt</state>
                     <state>$PROJ_DIR$\..\source\3_Bsw\Midwares\FreeRTOS\Source\cmsis_rtos</state>
                     <state>$PROJ_DIR$\..\source\5_Mcal\Gpio</state>
+                    <state>$PROJ_DIR$\..\source\5_Mcal\Can</state>
                     <state>$PROJ_DIR$\..\source\2_Rte</state>
                     <state>$PROJ_DIR$\..\source\5_Mcal\Uart</state>
-                    <state>D:\TBOX\KX2026_021_TBOX\example\source\1_App\Ecall</state>
-                    <state>D:\TBOX\KX2026_021_TBOX\example\source\1_App\Hmi</state>
-                    <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\CanService</state>
-                    <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\GnssService</state>
-                    <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\ModemService</state>
-                    <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\ModemPort</state>
-                    <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\MsgIF</state>
-                    <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\PowerService</state>
-                    <state>D:\TBOX\KX2026_021_TBOX\example\source\4_System\Task</state>
-                    <state>D:\TBOX\KX2026_021_TBOX\example\source\3_Bsw\InputService</state>
+                    <state>$PROJ_DIR$\..\source\1_App\Ecall</state>
+                    <state>$PROJ_DIR$\..\source\1_App\Hmi</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\CanService</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\GnssService</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\EcallDiagService</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\TimeService</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\ModemService</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\MsgIF</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\PowerService</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\OutputService</state>
+                    <state>$PROJ_DIR$\..\source\4_System\Task</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\InputService</state>
+                    <state>$PROJ_DIR$\..\drivers\System\include</state>
+                    <state>$PROJ_DIR$\..\drivers\bsp\ev_hc32f4a8_lqfp176</state>
+                    <state>$PROJ_DIR$\..\drivers\bsp\components\tca9539</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\ModemService</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanIf</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanManage</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanMatrix</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanNm</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanTp</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanTransciever</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Did</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Dtc</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\IoCtr</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Routine</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\SecuAccs</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Service</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Uds</state>
+                    <state>$PROJ_DIR$\..\source\6_Library</state>
+                    <state>$PROJ_DIR$\..\source\5_Mcal\Nvm</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\Eeprom</state>
+                    <state>$PROJ_DIR$\..\source\1_App\Memory</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -492,13 +516,17 @@
                     <name>OICompilerExtraOption</name>
                     <state>1</state>
                 </option>
+                <option>
+                    <name>CCStackProtection</name>
+                    <state>0</state>
+                </option>
             </data>
         </settings>
         <settings>
             <name>AARM</name>
             <archiveVersion>2</archiveVersion>
             <data>
-                <version>10</version>
+                <version>11</version>
                 <wantNonLocal>1</wantNonLocal>
                 <debug>0</debug>
                 <option>
@@ -653,6 +681,10 @@
                 <option>
                     <name>AsmNoLiteralPool</name>
                     <state>0</state>
+                </option>
+                <option>
+                    <name>PreInclude</name>
+                    <state></state>
                 </option>
             </data>
         </settings>
@@ -1197,7 +1229,7 @@
                 </option>
                 <option>
                     <name>GBECoreSlave</name>
-                    <version>27</version>
+                    <version>28</version>
                     <state>39</state>
                 </option>
                 <option>
@@ -1214,7 +1246,7 @@
                 </option>
                 <option>
                     <name>CoreVariant</name>
-                    <version>27</version>
+                    <version>28</version>
                     <state>39</state>
                 </option>
                 <option>
@@ -1233,7 +1265,7 @@
                 </option>
                 <option>
                     <name>GFPUCoreSlave2</name>
-                    <version>27</version>
+                    <version>28</version>
                     <state>39</state>
                 </option>
                 <option>
@@ -1292,7 +1324,7 @@
             <name>ICCARM</name>
             <archiveVersion>2</archiveVersion>
             <data>
-                <version>35</version>
+                <version>36</version>
                 <wantNonLocal>1</wantNonLocal>
                 <debug>0</debug>
                 <option>
@@ -1426,7 +1458,7 @@
                     <state>$PROJ_DIR$/../source</state>
                     <state>$PROJ_DIR$/../../common</state>
                     <state>$PROJ_DIR$\..\source\6_Library\SeggerRtt</state>
-                    <state>$PROJ_DIR$\..\source\3_Bsw\ModemPort</state>
+                    <state>$PROJ_DIR$\..\source\5_Mcal\Can</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -1548,13 +1580,17 @@
                     <name>OICompilerExtraOption</name>
                     <state>1</state>
                 </option>
+                <option>
+                    <name>CCStackProtection</name>
+                    <state>0</state>
+                </option>
             </data>
         </settings>
         <settings>
             <name>AARM</name>
             <archiveVersion>2</archiveVersion>
             <data>
-                <version>10</version>
+                <version>11</version>
                 <wantNonLocal>1</wantNonLocal>
                 <debug>0</debug>
                 <option>
@@ -1709,6 +1745,10 @@
                 <option>
                     <name>AsmNoLiteralPool</name>
                     <state>0</state>
+                </option>
+                <option>
+                    <name>PreInclude</name>
+                    <state></state>
                 </option>
             </data>
         </settings>
@@ -2316,7 +2356,25 @@
         <group>
             <name>1_App</name>
             <file>
+                <name>$PROJ_DIR$\..\source\1_App\Memory\App_Memory.c</name>
+            </file>
+            <file>
                 <name>$PROJ_DIR$\..\source\1_App\Ecall\Ecall.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\source\1_App\Ecall\EcallDiag.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\source\1_App\Ecall\EcallDiag.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\source\1_App\Ecall\EcallDiag_Cfg.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\source\1_App\Hmi\EcallHmi.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\source\1_App\Hmi\EcallHmi.h</name>
             </file>
             <file>
                 <name>$PROJ_DIR$\..\source\1_App\Hmi\Hmi.c</name>
@@ -2336,6 +2394,12 @@
             <file>
                 <name>$PROJ_DIR$\..\source\2_Rte\RteSys.h</name>
             </file>
+            <file>
+                <name>$PROJ_DIR$\..\source\2_Rte\RteSys_Diag.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\source\2_Rte\RteSys_Diag.h</name>
+            </file>
         </group>
         <group>
             <name>3_Bsw</name>
@@ -2346,6 +2410,229 @@
                 </file>
             </group>
             <group>
+                <name>Communi</name>
+                <group>
+                    <name>Canlf</name>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanIf\CanIf.c</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanIf\CanIf.h</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanIf\CanIf_Cfg.c</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanIf\CanIf_Cfg.h</name>
+                    </file>
+                </group>
+                <group>
+                    <name>CanManage</name>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanManage\CanManage.c</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanManage\CanManage.h</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanManage\CanManage_Cfg.c</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanManage\CanManage_Cfg.h</name>
+                    </file>
+                </group>
+                <group>
+                    <name>CanMatrix</name>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanMatrix\CanMatrix.c</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanMatrix\CanMatrix.h</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanMatrix\CanMatrix_Cfg.c</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanMatrix\CanMatrix_Cfg.h</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanMatrix\CanMatrix_Def.h</name>
+                    </file>
+                </group>
+                <group>
+                    <name>CanNm</name>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanNm\CanNm.c</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanNm\CanNm.h</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanNm\CanNm_Cfg.c</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanNm\CanNm_Cfg.h</name>
+                    </file>
+                </group>
+                <group>
+                    <name>CanTp</name>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanTp\CanTp.c</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanTp\CanTp.h</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanTp\CanTp_Cfg.c</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanTp\CanTp_Cfg.h</name>
+                    </file>
+                </group>
+                <group>
+                    <name>CanTransciever</name>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanTransciever\CanTransciever.c</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanTransciever\CanTransciever.h</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanTransciever\CanTransciever_Cfg.c</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanTransciever\CanTransciever_Cfg.h</name>
+                    </file>
+                </group>
+                <group>
+                    <name>CanUdsService</name>
+                    <group>
+                        <name>Did</name>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Did\Did.c</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Did\Did.h</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Did\Did_Cfg.c</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Did\Did_Cfg.h</name>
+                        </file>
+                    </group>
+                    <group>
+                        <name>Dtc</name>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Dtc\Dtc.c</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Dtc\Dtc.h</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Dtc\Dtc_Cfg.c</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Dtc\Dtc_Cfg.h</name>
+                        </file>
+                    </group>
+                    <group>
+                        <name>loCtr</name>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\IoCtr\IoCtr.c</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\IoCtr\IoCtr.h</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\IoCtr\IoCtr_Cfg.c</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\IoCtr\IoCtr_Cfg.h</name>
+                        </file>
+                    </group>
+                    <group>
+                        <name>Routine</name>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Routine\Routine.c</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Routine\Routine.h</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Routine\Routine_Cfg.c</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Routine\Routine_Cfg.h</name>
+                        </file>
+                    </group>
+                    <group>
+                        <name>SecuAccs</name>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\SecuAccs\SecuAccs.c</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\SecuAccs\SecuAccs.h</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\SecuAccs\SecuAccs_Cfg.c</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\SecuAccs\SecuAccs_Cfg.h</name>
+                        </file>
+                    </group>
+                    <group>
+                        <name>Service</name>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Service\Service.c</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Service\Service.h</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Service\Service_Cfg.c</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Service\Service_Cfg.h</name>
+                        </file>
+                    </group>
+                    <group>
+                        <name>Uds</name>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Uds\Uds.c</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Uds\Uds.h</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Uds\Uds_Cfg.c</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Uds\UDS_Cfg.h</name>
+                        </file>
+                        <file>
+                            <name>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Uds\Uds_Def.h</name>
+                        </file>
+                    </group>
+                </group>
+            </group>
+            <group>
+                <name>EcallDiagService</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\EcallDiagService\EcallDiagService.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\EcallDiagService\EcallDiagService.h</name>
+                </file>
+            </group>
+            <group>
+                <name>Eeprom</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\Eeprom\M95040.c</name>
+                </file>
+            </group>
+
+            <group>
                 <name>GnssService</name>
                 <file>
                     <name>$PROJ_DIR$\..\source\3_Bsw\GnssService\GnssService.c</name>
@@ -2355,6 +2642,12 @@
                 <name>InputService</name>
                 <file>
                     <name>$PROJ_DIR$\..\source\3_Bsw\InputService\InputService.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\InputService\InputService_Cfg.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\InputService\InputService_Cfg.h</name>
                 </file>
             </group>
             <group>
@@ -2411,32 +2704,21 @@
                     </file>
                 </group>
             </group>
+
             <group>
                 <name>ModemService</name>
+
+
+
+
+
                 <file>
-                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemService.c</name>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemPower.c</name>
                 </file>
                 <file>
-                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemCall.c</name>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemPower_Cfg.h</name>
                 </file>
-                <file>
-                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemGnss.c</name>
-                </file>
-                <file>
-                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemNetwork.c</name>
-                </file>
-                <file>
-                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemPlatform.c</name>
-                </file>
-            </group>
-            <group>
-                <name>ModemPort</name>
-                <file>
-                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemPort\ModemPort.c</name>
-                </file>
-                <file>
-                    <name>$PROJ_DIR$\..\source\3_Bsw\ModemPort\ModemPort.h</name>
-                </file>
+
             </group>
             <group>
                 <name>MsgIF</name>
@@ -2454,11 +2736,47 @@
                 </file>
             </group>
             <group>
+                <name>OutputService</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\OutputService\OutputService.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\OutputService\OutputService.h</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\OutputService\OutputService_Ecall.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\OutputService\OutputService_Ecall.h</name>
+                </file>
+            </group>
+            <group>
                 <name>PowerService</name>
                 <file>
                     <name>$PROJ_DIR$\..\source\3_Bsw\PowerService\PowerService.c</name>
                 </file>
             </group>
+            <group>
+                <name>TimeService</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\TimeService\TimeService.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\TimeService\TimeService.h</name>
+                </file>
+            </group>
+            <file>
+                <name>$PROJ_DIR$\..\drivers\bsp\ev_hc32f4a8_lqfp176\ev_hc32a4a8_lqfp176.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\drivers\bsp\ev_hc32f4a8_lqfp176\ev_hc32a4a8_lqfp176_tca9539.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\drivers\bsp\components\tca9539\tca9539.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\drivers\bsp\components\tca9539\tca9539.h</name>
+            </file>
         </group>
         <group>
             <name>4_System</name>
@@ -2476,9 +2794,7 @@
                 <file>
                     <name>$PROJ_DIR$\..\source\4_System\Task\GnssTask.c</name>
                 </file>
-                <file>
-                    <name>$PROJ_DIR$\..\source\4_System\Task\ModemTask.c</name>
-                </file>
+
                 <file>
                     <name>$PROJ_DIR$\..\source\4_System\Task\MonitoringTask.c</name>
                 </file>
@@ -2497,7 +2813,17 @@
             </group>
             <group>
                 <name>Can</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\5_Mcal\Can\Can.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\5_Mcal\Can\Can.h</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\source\5_Mcal\Can\Can_Cfg.h</name>
+                </file>
             </group>
+
             <group>
                 <name>Gpio</name>
                 <file>
@@ -2529,6 +2855,9 @@
                 </file>
             </group>
             <group>
+                <name>Nvm</name>
+            </group>
+            <group>
                 <name>Spi</name>
             </group>
             <group>
@@ -2546,18 +2875,311 @@
                     <name>$PROJ_DIR$\..\source\5_Mcal\Uart\Uart_Cfg.h</name>
                 </file>
             </group>
+            <configuration>
+                <name>Debug</name>
+                <settings>
+                    <name>ICCARM</name>
+                    <data>
+                        <version>36</version>
+                        <wantNonLocal>0</wantNonLocal>
+                        <debug>0</debug>
+                        <option>
+                            <name>CCDefines</name>
+                            <state>__DEBUG</state>
+                            <state>HC32A4A8</state>
+                            <state>USE_DDL_DRIVER</state>
+                        </option>
+                        <option>
+                            <name>CCPreprocFile</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCPreprocComments</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCPreprocLine</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCListCFile</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCListCMnemonics</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCListCMessages</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCListAssFile</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCListAssSource</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCEnableRemarks</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCDiagSuppress</name>
+                            <state></state>
+                        </option>
+                        <option>
+                            <name>CCDiagRemark</name>
+                            <state></state>
+                        </option>
+                        <option>
+                            <name>CCDiagWarning</name>
+                            <state></state>
+                        </option>
+                        <option>
+                            <name>CCDiagError</name>
+                            <state></state>
+                        </option>
+                        <option>
+                            <name>CCObjPrefix</name>
+                            <state>1</state>
+                        </option>
+                        <option>
+                            <name>CCAllowList</name>
+                            <version>1</version>
+                            <state>11111110</state>
+                        </option>
+                        <option>
+                            <name>CCDebugInfo</name>
+                            <state>1</state>
+                        </option>
+                        <option>
+                            <name>IEndianMode</name>
+                            <state>1</state>
+                        </option>
+                        <option>
+                            <name>IProcessor</name>
+                            <state>1</state>
+                        </option>
+                        <option>
+                            <name>IExtraOptionsCheck</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>IExtraOptions</name>
+                            <state></state>
+                        </option>
+                        <option>
+                            <name>CCLangConformance</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCSignedPlainChar</name>
+                            <state>1</state>
+                        </option>
+                        <option>
+                            <name>CCRequirePrototypes</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCDiagWarnAreErr</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCCompilerRuntimeInfo</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>IFpuProcessor</name>
+                            <state>1</state>
+                        </option>
+                        <option>
+                            <name>OutputFile</name>
+                            <state>$FILE_BNAME$.o</state>
+                        </option>
+                        <option>
+                            <name>CCLibConfigHeader</name>
+                            <state>1</state>
+                        </option>
+                        <option>
+                            <name>PreInclude</name>
+                            <state></state>
+                        </option>
+                        <option>
+                            <name>CompilerMisraOverride</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCIncludePath2</name>
+                            <state>$PROJ_DIR$/../source</state>
+                            <state>$PROJ_DIR$/../../common</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Midwares\FreeRTOS\Source\include</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Midwares\FreeRTOS\Source\portable\IAR\ARM_CM4F</state>
+                            <state>$PROJ_DIR$\..\drivers\cmsis\Include</state>
+                            <state>$PROJ_DIR$\..\drivers\hc32_ll_driver\inc</state>
+                            <state>$PROJ_DIR$\..\drivers\cmsis\Device\XHSC\hc32a4xx\Include</state>
+                            <state>$PROJ_DIR$\..\source</state>
+                            <state>$PROJ_DIR$\..\source\6_Library</state>
+                            <state>$PROJ_DIR$\..\source\6_Library\SeggerRtt</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Midwares\FreeRTOS\Source\cmsis_rtos</state>
+                            <state>$PROJ_DIR$\..\source\5_Mcal\Gpio</state>
+                            <state>$PROJ_DIR$\..\source\5_Mcal\Can</state>
+                            <state>$PROJ_DIR$\..\source\2_Rte</state>
+                            <state>$PROJ_DIR$\..\source\5_Mcal\Uart</state>
+                            <state>$PROJ_DIR$\..\source\1_App\Ecall</state>
+                            <state>$PROJ_DIR$\..\source\1_App\Hmi</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\CanService</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\GnssService</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\EcallDiagService</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\TimeService</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\ModemService</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\MsgIF</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\PowerService</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\OutputService</state>
+                            <state>$PROJ_DIR$\..\source\4_System\Task</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\InputService</state>
+                            <state>$PROJ_DIR$\..\drivers\System\include</state>
+                            <state>$PROJ_DIR$\..\drivers\bsp\ev_hc32f4a8_lqfp176</state>
+                            <state>$PROJ_DIR$\..\drivers\bsp\components\tca9539</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\ModemService</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanIf</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanManage</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanMatrix</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanNm</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanTp</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanTransciever</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Did</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Dtc</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\IoCtr</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Routine</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\SecuAccs</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Service</state>
+                            <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Uds</state>
+                            <state>$PROJ_DIR$\..\source\6_Library</state>
+                        </option>
+                        <option>
+                            <name>CCStdIncCheck</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCCodeSection</name>
+                            <state>.text</state>
+                        </option>
+                        <option>
+                            <name>IProcessorMode2</name>
+                            <state>1</state>
+                        </option>
+                        <option>
+                            <name>CCOptLevel</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCOptStrategy</name>
+                            <version>0</version>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCOptLevelSlave</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CompilerMisraRules98</name>
+                            <version>0</version>
+                            <state>1000111110110101101110011100111111101110011011000101110111101101100111111111111100110011111001110111001111111111111111111111111</state>
+                        </option>
+                        <option>
+                            <name>CompilerMisraRules04</name>
+                            <version>0</version>
+                            <state>011111011111111110111111111011011101111011111011110110011111101111110111111111111101111111111001101111110111110001111111011111111111111111111</state>
+                        </option>
+                        <option>
+                            <name>CCPosIndRopi</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCPosIndRwpi</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCPosIndNoDynInit</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>IccLang</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>IccCDialect</name>
+                            <state>1</state>
+                        </option>
+                        <option>
+                            <name>IccAllowVLA</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>IccStaticDestr</name>
+                            <state>1</state>
+                        </option>
+                        <option>
+                            <name>IccCppInlineSemantics</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>IccCmsis</name>
+                            <state>1</state>
+                        </option>
+                        <option>
+                            <name>IccFloatSemantics</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCOptimizationNoSizeConstraints</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCNoLiteralPool</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCOptStrategySlave</name>
+                            <version>0</version>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCEncSource</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCEncOutput</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCEncOutputBom</name>
+                            <state>1</state>
+                        </option>
+                        <option>
+                            <name>CCEncInput</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>IccExceptions2</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>IccRTTI2</name>
+                            <state>0</state>
+                        </option>
+                        <option>
+                            <name>CCStackProtection</name>
+                            <state>0</state>
+                        </option>
+                    </data>
+                </settings>
+            </configuration>
         </group>
         <group>
             <name>6_Library</name>
-            <file>
-                <name>$PROJ_DIR$\..\source\6_Library\Memory.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\source\6_Library\Memory.h</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\source\6_Library\Types.h</name>
-            </file>
             <group>
                 <name>SeggerRtt</name>
                 <file>
@@ -2570,6 +3192,15 @@
                     <name>$PROJ_DIR$\..\source\6_Library\SeggerRtt\SEGGER_RTT_Conf.h</name>
                 </file>
             </group>
+            <file>
+                <name>$PROJ_DIR$\..\source\6_Library\Memory.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\source\6_Library\Memory.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\source\6_Library\Types.h</name>
+            </file>
         </group>
         <file>
             <name>$PROJ_DIR$\..\source\main.c</name>
