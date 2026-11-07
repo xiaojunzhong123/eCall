@@ -1,7 +1,7 @@
 /*******************************************************
   * Name    :Uart.c
   * Author  :WangHu
-  * Function:****
+  * Function:MCAL 串口初始化及收发；接收由中断写入、单任务读取。
   * Version :V1.0.0
   * Data    :2023.12.12
 *******************************************************/
@@ -12,7 +12,11 @@
 #define UART_RX_BUFFER_LENGTH    2048U
 
 uint8_t data[50] = { 0 };
+/* 接收槽由 USART3 中断写入，单一消费任务读取，写索引发布后数据有效。 */
 static uint8_t m_au8RxBuffer[UART_RX_BUFFER_LENGTH];
+/* 读索引由消费任务更新、中断读取；写索引由中断更新、任务读取。
+ * 索引为对齐的十六位访问，范围零至缓冲区长度减一；初始化须在接收前完成。
+ * 不支持多任务并行读取或运行期与接收并行重新初始化。 */
 static volatile uint16_t m_u16RxReadIndex = 0U;
 static volatile uint16_t m_u16RxWriteIndex = 0U;
 static volatile uint16_t m_u16RxOverflowCount = 0U;
@@ -151,27 +155,45 @@ Bool Uart_RxData(uint8_t *p_buff, uint8_t len)
 
 /*******************************************************
   * Name    :Uart_ReadRxData
-  * Author  :LoH
-  * Function:Read available USART3 RX ring-buffer bytes.
-  * Version :V1.0.0
-  * Data    :2026.08.27
+  * Author  :xiaojunzhong
+  * Function:按确定顺序读取接收索引，非阻塞取走当前可用字节。
+  * Version :V1.1.0
+  * Data    :2026.11.05
+  * Input   :接收缓冲区及最大长度，缓冲区容量不得小于最大长度。
+  * Output  :返回实际读取长度，范围零至请求长度，单位为字节。
+  * Caller  :单一消费任务；当前尚无生产调用者，不允许多任务并行读取。
+  * Precond :Uart_Init 已完成；接收中断独占写索引，任务独占读索引。
+  * Failure :空指针、零长度或队列为空时返回零，不等待新数据。
+  * Effect  :复制后发布新读索引；不关中断、不改变写索引和溢出策略。
 *******************************************************/
 uint8_t Uart_ReadRxData(uint8_t *pu8Buffer, uint8_t u8Length)
 {
-    uint8_t u8ReadLength = 0U;
+    uint8_t u8ReadLength = 0U; /* 本次已复制字节数，不跨调用保留。 */
+    uint16_t u16ReadIndex;    /* 当前读位置及复制后的下一位置。 */
+    uint16_t u16WriteIndex;   /* 每次判空前取得的中断写位置快照。 */
 
     if (pu8Buffer == NULL)
     {
         return 0U;
     }
-    while ((u8ReadLength < u8Length) && (m_u16RxReadIndex != m_u16RxWriteIndex))
+    while (u8ReadLength < u8Length)
     {
-        pu8Buffer[u8ReadLength] = m_au8RxBuffer[m_u16RxReadIndex];
-        m_u16RxReadIndex++;
-        if (m_u16RxReadIndex >= UART_RX_BUFFER_LENGTH)
+        /* 分开读取两个 volatile 对象，比较只使用本地快照。 */
+        u16ReadIndex = m_u16RxReadIndex;
+        u16WriteIndex = m_u16RxWriteIndex;
+        if (u16ReadIndex == u16WriteIndex)
         {
-            m_u16RxReadIndex = 0U;
+            break;
         }
+
+        pu8Buffer[u8ReadLength] = m_au8RxBuffer[u16ReadIndex];
+        u16ReadIndex++;
+        if (u16ReadIndex >= UART_RX_BUFFER_LENGTH)
+        {
+            u16ReadIndex = 0U;
+        }
+        /* 复制完成后才释放槽位，中断不得覆盖尚未取走的字节。 */
+        m_u16RxReadIndex = u16ReadIndex;
         u8ReadLength++;
     }
     return u8ReadLength;

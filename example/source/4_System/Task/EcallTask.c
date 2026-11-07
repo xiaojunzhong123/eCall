@@ -44,7 +44,7 @@ static uint8_t EcallTask_GetTriggerMask(EcallTrigger_t enTrigger)
 /*******************************************************
   * Name    :EcallTask_ProcessPending
   * Author  :xiaojunzhong
-  * Function:原子取走锁存意图；先处理触发，再取消，保证自动碰撞优先。
+  * Function:先处理触发，再取消，保证自动碰撞优先。
   * Version :V1.2.0
   * Data    :2026.11.03
 *******************************************************/

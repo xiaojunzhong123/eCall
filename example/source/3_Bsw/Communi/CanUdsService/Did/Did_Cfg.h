@@ -1,9 +1,9 @@
 /*******************************************************
   * Name    :Did_Cfg.h
-  * Author  :WangHu
-  * Function:****
-  * Version :V1.0.0
-  * Data    :2023.12.12
+  * Author  :xiaojunzhong
+  * Function:BSW 诊断 DID 配置及车辆配置读取适配边界。
+  * Version :V1.1.0
+  * Data    :2026.11.04
 *******************************************************/
 #ifndef _DID_CFG_H_
 #define _DID_CFG_H_
@@ -13,6 +13,7 @@
 #include "Uds.h"
 #include "Memory.h"
 #include "RteSys.h"
+#include "Nvm.h"
 //#include "Nvm.h"
 /*-------------define---------------------------------*/
 #define DID_ADDR_NOE                    0x00
@@ -26,9 +27,17 @@
 /*-------------RteSys port----------------------------*/
 #define Did_GetVoltageValue()           RteSys_GetVoltageValue()
 /*-------------Nvm port-------------------------------*/
-#define Did_NvmRead(addr, p_buff, len)  0//Nvm_Read(addr, p_buff, len)
-#define Did_NvmWrite(addr, p_buff, len) 0//Nvm_Write(addr, p_buff, len)
-#define Did_NvmGetProgramStatus()       0//Nvm_GetProgramStatus()
+#define Did_NvmRead(addr, p_buff, len)  Nvm_Read(addr, p_buff, len)
+#define Did_NvmWrite(addr, p_buff, len) Nvm_Write(addr, p_buff, len)
+#define Did_NvmGetProgramStatus()       Nvm_GetProgramStatus()
+/* 上电低频配置读取适配口，后续由用户接入实际存储；不预设地址或默认车型。
+ * 仅在同步填充全部输出后返回 TRUE，不能将异步受理视为完成。
+ * 车型和旧能源分别通过 RTESYS_MSD_VEHICLE_TYPE_VALID、
+ * RTESYS_MSD_ENERGY_TYPE_VALID 标记；无来源字段必须清除相应有效位。
+ * 组合能源仅低七位有意义，返回 TRUE 表示配置整体有效。
+ */
+#define Did_ReadVehicleProperties(p_vehicleType, p_energyType, p_validMask) FALSE
+#define Did_ReadPropulsion(p_propulsionMask) FALSE
 /*-------------enum and struct------------------------*/
 typedef enum
 {

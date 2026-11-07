@@ -1,12 +1,13 @@
 /*******************************************************
   * Name    :Did.c
-  * Author  :WangHu
-  * Function:****
-  * Version :V1.0.0
-  * Data    :2023.12.12
+  * Author  :xiaojunzhong
+  * Function:BSW 诊断 DID 读写及上电车辆配置装载。
+  * Version :V1.1.0
+  * Data    :2026.11.04
 *******************************************************/
 /*-------------include file---------------------------*/
 #include "Did_Cfg.h"
+#include "Did.h"
 #include <string.h>
 
 /* UdsTask owns the pending VIN copy for one accepted 0x2E transaction.
@@ -24,6 +25,51 @@ static DidVinRuntime_t s_mDidVinRun;
 /*-------------variable statement---------------------*/
 
 /*-------------function-------------------------------*/
+/*******************************************************
+  * Name    :Did_Init
+  * Author  :xiaojunzhong
+  * Function:上电独立装载 VIN、车型、旧能源及组合能源到车辆 RTE。
+  * Version :V1.0.0
+  * Data    :2026.11.04
+  * Input   :无；VIN 沿用既有地址，其他配置经 Did_Cfg.h 读取适配口。
+  * Output  :无返回值；每组仅发布成功读取的数据，VIN 非法不发布。
+  * Caller  :TaskManager_Start，内核启动及任务创建前调用一次。
+  * Precond :RTE 已初始化；NVM 读接口须可在内核启动前同步读取。
+  * Failure :当前读取适配口未接通；无配置时保持对应字段无效。
+  * Effect  :清理 DID 待写运行态；成功时更新各组 RTE 及发布版本。
+*******************************************************/
+void Did_Init(void)
+{
+    uint8_t au8StoredVin[RTESYS_MSD_VIN_LENGTH] = {0U}; /* 启动调用独占的十七字节读取副本，函数返回后失效。 */
+    uint8_t u8VehicleType = 0xFFU; /* 启动局部车型代码，一至十三有效；未读取时为无效占位。 */
+    uint8_t u8EnergyType = 0xFFU; /* 启动局部旧能源代码，实际映射由配置来源确认。 */
+    uint8_t u8VehicleValidMask = 0U; /* 启动局部有效位，分别描述车型和旧能源是否可用。 */
+    uint8_t u8PropulsionMask = 0U; /* 启动局部七种组合能源位；读取成功前零不代表已配置。 */
+
+    /* 初始化发生在 UdsTask 运行前，不能在诊断写入事务中重复调用。 */
+    (void)memset(&s_mDidVinRun, 0, sizeof(s_mDidVinRun));
+    /* TRUE 必须表示目标缓存已完整填充；异步受理不能当作读取完成。 */
+    if (Did_NvmRead(UDS_VIN_ADDR, au8StoredVin, UDS_VIN_LEN) == TRUE)
+    {
+        /* 发布接口检查长度和合法字符，非法内容保持上电无效状态。 */
+        (void)RteSys_UpdateMsdVin(au8StoredVin, UDS_VIN_LEN);
+    }
+
+    if (Did_ReadVehicleProperties(&u8VehicleType, &u8EnergyType, &u8VehicleValidMask) == TRUE)
+    {
+        if ((u8VehicleType < 1U) || (u8VehicleType > 13U))
+        {
+            u8VehicleValidMask &= (uint8_t)(~RTESYS_MSD_VEHICLE_TYPE_VALID);
+        }
+        RteSys_PublishMsdVehicleProperties(u8VehicleType, u8EnergyType, u8VehicleValidMask);
+    }
+    if (Did_ReadPropulsion(&u8PropulsionMask) == TRUE)
+    {
+        /* 旧能源代码不能推导组合能源；高位非法时由 RTE 标为无效。 */
+        RteSys_PublishMsdPropulsion(u8PropulsionMask, 1U);
+    }
+}
+
 /*******************************************************
   * Name    :Did_FinalRespNrcDeal
   * Author  :LoH

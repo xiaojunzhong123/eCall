@@ -30,25 +30,7 @@ typedef enum
 #define ECALL_TRIGGER_MASK_CAN        0x04U
 #define ECALL_TRIGGER_MASK_ALL        0x07U
 #define ECALL_MANUAL_CANCEL_WINDOW_MS 10000U
-#define ECALL_GNSS_HISTORY_COUNT       9U
 
-/* 定位服务现有值复制容器，不是 MSD 编码报文。无源时各有效标志为零。 */
-typedef struct
-{
-    uint8_t trigger_mask;       /* 原接口兼容字段；触发由应用独立仲裁。 */
-    uint8_t gnss_valid;         /* 当前定位是否有效。 */
-    int32_t latitude_e7;        /* 纬度，度乘一千万。 */
-    int32_t longitude_e7;       /* 经度，度乘一千万。 */
-    uint32_t utc_seconds;      /* 定位样本 UTC 秒。 */
-    int32_t history_latitude_e7[ECALL_GNSS_HISTORY_COUNT];  /* 真实历史纬度。 */
-    int32_t history_longitude_e7[ECALL_GNSS_HISTORY_COUNT]; /* 真实历史经度。 */
-    uint32_t history_utc_seconds[ECALL_GNSS_HISTORY_COUNT]; /* 历史采样时刻。 */
-    uint8_t history_count;      /* 实际有效点数，不用零值补足。 */
-    uint8_t delta_v_longitudinal_raw; /* 历史容器字段，无实际来源时无效。 */
-    uint8_t delta_v_lateral_raw;      /* 横向冲击原始值，不表示物理单位。 */
-    uint8_t occupants;          /* 历史容器字段；当前人数由 RTE 载重估算。 */
-    uint8_t rollover;           /* 翻滚原始值，不代替来源有效性。 */
-} EcallMsd_t;
 typedef struct
 {
     uint32_t u32SessionId;      /* 非零事件号，用于拒绝迟到交付结果。 */
@@ -61,7 +43,7 @@ typedef struct
 {
     uint32_t u32SessionId;      /* 由消费者原样回传的事件号。 */
     uint8_t u8TriggerMask;      /* 自动/CAN 优先于手动取消。 */
-    RteSysMsdSnapshot_t stSnapshot; /* 首次触发冻结的数据及逐项有效性。 */
+    RteSysVehicleSnapshot_t stVehicleData; /* 首次触发冻结的车辆数据；不包含模组定位和时间。 */
 } EcallRequest_t;
 
 /* 任务启动前初始化；其余业务修改只由 EcallTask 执行。 */
@@ -72,10 +54,10 @@ void Ecall_OnTrigger(EcallTrigger_t enTrigger);
 void Ecall_OnTriggerMask(uint8_t u8TriggerMask);
 /* 仅手动取消窗口接受取消；交付开始后取消由未来协议另行定义。 */
 void Ecall_OnManualCancel(void);
-/* 未来协议服务按值读待交付事件。返回一只表示取得副本，不表示模组收到。 */
+/* 协议服务按值读待交付事件。返回一只表示取得副本，不表示模组收到。 */
 uint8_t Ecall_ReadPendingRequest(EcallRequest_t *pstRequest);
 /* 未来协议服务按事件号回报实际交付结果；成功不表示呼叫或 MSD 发送成功。
- * 尚未接入 CAN/UART 协议，因此当前没有生产调用方；默认保持待交付。 */
+ * UART发送已接入，ACK读取仍为空接口；没有真实结果时保持待交付。 */
 uint8_t Ecall_ReportDelivery(uint32_t u32SessionId, uint8_t u8Success);
 /* 跨任务只读接口；不返回内部指针，不清除事件。 */
 uint8_t Ecall_ReadStatus(EcallStatus_t *pstStatus);

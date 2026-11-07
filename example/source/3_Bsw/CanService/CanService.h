@@ -1,7 +1,7 @@
 /*******************************************************
   * Name    :CanService.h
   * Author  :xiaojunzhong
-  * Function:CAN 碰撞接收、车辆数据发布、时间发送及总线错误恢复。
+  * Function:CAN碰撞接收、车辆数据发布及总线错误恢复。
   * Version :V1.0.0
   * Data    :2026.08.29
 *******************************************************/
@@ -28,27 +28,13 @@ typedef union
     } B;
 } CanServiceSrsInfoFrame_t;
 
-typedef union
-{
-    uint8_t U[8]; /* 报文原始字节视图。 */
-    struct
-    {
-        uint8_t u8YearHigh; /* 年份编码高字节。 */
-        uint8_t u8YearLow; /* 年份编码低字节。 */
-        uint8_t u8Month; /* 月份，一至十二。 */
-        uint8_t u8DayRaw; /* 日按矩阵比例编码后的原值。 */
-        uint8_t u8Hour; /* 时，零至二十三。 */
-        uint8_t u8Minute; /* 分，零至五十九。 */
-        uint8_t u8SecondRaw; /* 秒按矩阵比例编码后的原值。 */
-        uint8_t u8ReservedByte7; /* 矩阵保留位，沿用原编码初值，不解释为业务数据。 */
-    } B;
-} CanServiceTimeFrame_t;
+
 
 /* 初始化 CAN 服务私有缓存和碰撞重新使能标志，启动已有 CAN2 配置。 */
 /* 初始化 CAN 服务私有缓存和碰撞重新使能标志，启动已有 CAN2 配置。 */
 void CanService_Init(void);
-/* 按接收、错误恢复、时间发送的顺序处理；不维护模组通话状态。 */
-/* 按接收、错误恢复、时间发送的顺序处理；不维护模组通话状态。 */
+/* 按接收和错误恢复顺序处理，不采集或发送模组定位时间。 */
+/* 按接收和错误恢复顺序处理，不采集或发送模组定位时间。 */
 void CanService_Process(void);
 /* 原子取走一次碰撞锁存位；由 CanTask 转交 EcallTask。 */
 /* 原子取走一次碰撞锁存位；由 CanTask 转交 EcallTask。 */

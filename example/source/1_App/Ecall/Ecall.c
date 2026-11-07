@@ -6,6 +6,8 @@
   * Data    :2026.11.03
 *******************************************************/
 #include "Ecall.h"
+#include "EcallSelfCheck.h"
+#include "MsdService.h"
 #include "PowerService.h"
 #include "Hmi.h"
 #include "cmsis_os.h"
@@ -13,7 +15,7 @@
 #include <string.h>
 
 /* EcallTask 独占过程数据；跨任务共享的请求及交付标志统一由临界区保护。
- * 不等待 AT、不解析通话状态、不编码 MSD，也不使用动态内存。
+ * 只冻结车辆数据，不管理模组定位、标准数据编码和平台上传，也不使用动态内存。
  * 阅读顺序：OnTriggerMask -> ManualWindow -> DataPending -> Standby。 */
 typedef struct
 {
@@ -76,16 +78,26 @@ static void Ecall_EnterManualWindow(void)
 }
 
 /*******************************************************
-  * Name    :Ecall_EnterDataPending
+  * Name    :Ecall_SendMSDModule
   * Author  :xiaojunzhong
-  * Function:关闭取消窗口并公开待交付数据；协议未接入时停留此阶段。
-  * Version :V1.2.0
-  * Data    :2026.11.03
+  * Function:进入待交付阶段并发送一次首次事故快照；不等待模组ACK。
+  * Version :V1.0.0
+  * Data    :2026.11.06
+  * Input   :无，使用EcallTask持有的冻结请求。
+  * Output  :无返回值；发送失败记录一次日志，仍保留事件。
+  * Caller  :仅EcallTask的三条阶段入口。
+  * Precond :请求已冻结且事件电源锁已建立，服务已初始化。
+  * Failure :UART返回不证明交付；失败无自动重试，ACK未接入时一直等待。
+  * Effect  :关闭取消窗口，进入DATA_PENDING，临界区外调用服务发送。
 *******************************************************/
-static void Ecall_EnterDataPending(void)
+static void Ecall_SendMSDModule(void)
 {
     Hmi_SetEcallCancelWindow(0U);
     Ecall_SetState(ECALL_STATE_DATA_PENDING);
+    if (MsdService_Send(&s_ecAppRun.stRequest.stVehicleData, s_ecAppRun.stRequest.u8TriggerMask, s_ecAppRun.stRequest.u32SessionId) == 0U)
+    {
+        HMI_LOG_ECALL("MSD UART send failed; delivery remains pending");
+    }
 }
 
 /*******************************************************
@@ -118,27 +130,37 @@ static void Ecall_EnterFailure(void)
 /*******************************************************
   * Name    :Ecall_Init
   * Author  :xiaojunzhong
-  * Function:任务创建前清零事件及交付邮箱，初始状态为待机。
-  * Version :V1.2.0
-  * Data    :2026.11.03
+  * Function:上电初始化事件、MSD发送服务和交付邮箱，并初始化精简自检。
+  * Version :V1.3.0
+  * Data    :2026.11.05
+  * Input   :无；由 TaskManager_Start 在任务创建前调用一次。
+  * Output  :无返回值；事件待机，自检默认正常且全部来源待接入。
+  * Caller  :main 启动上下文，不在运行期用于清除自检故障。
+  * Precond :电源锁、日志和输出服务已初始化。
+  * Failure :未知检查不阻塞紧急事件，不宣称真实自检通过。
+  * Effect  :释放事件锁并提交 D29 熄灭请求，不改变模组供电。
 *******************************************************/
 void Ecall_Init(void)
 {
     (void)memset(&s_ecAppRun, 0, sizeof(s_ecAppRun));
     (void)memset(&s_ecAppSts, 0, sizeof(s_ecAppSts));
     PowerService_SetEcallLock(0U);
+    MsdService_Init();
+    Ecall_SelfCheckInit(); //上电自检初始化
 }
 
 /*******************************************************
   * Name    :Ecall_OnTriggerMask
   * Author  :xiaojunzhong
-  * Function:接受并合并触发；自动/CAN 抢占取消窗口，但不刷新首次事故快照。
+  * Function:触发报警，冻结车辆数据并进入事件状态机
+  		自动报警优先级高于手动报警，不会进入10s取消窗口
   * Version :V1.2.0
   * Data    :2026.11.03
 *******************************************************/
 void Ecall_OnTriggerMask(uint8_t u8TriggerMask)
 {
-    uint8_t u8Automatic; /* 自动来源非零时不允许手动取消。 */
+    uint8_t u8Automatic = 0; /* 自动报警标志，非零时不允许手动取消。 */
+	
     u8TriggerMask &= ECALL_TRIGGER_MASK_ALL;
     if (u8TriggerMask == 0U)
     {
@@ -153,11 +175,11 @@ void Ecall_OnTriggerMask(uint8_t u8TriggerMask)
             s_ecAppRun.u32NextSessionId = 1U;
         }
         /* 非空目标必可复制；字段是否有效由快照中的有效标志独立描述。
-         * 不以缺少 VIN/定位为理由丢弃触发，模组策略由协议接入后处理。 */
-        (void)RteSys_ReadMsdSnapshot(&s_ecAppRun.stRequest.stSnapshot);
+         * 不以缺少车辆配置为理由丢弃触发，模组策略由协议接入后处理。 */
+        (void)RteSys_ReadVehicleSnapshot(&s_ecAppRun.stRequest.stVehicleData); //冻结车辆数据
         portENTER_CRITICAL();
         s_ecAppRun.stRequest.u32SessionId = s_ecAppRun.u32NextSessionId;
-        s_ecAppRun.stRequest.u8TriggerMask = u8TriggerMask;
+        s_ecAppRun.stRequest.u8TriggerMask = u8TriggerMask; //触发源
         s_ecAppRun.u8DeliveryReady = 0U;
         s_ecAppSts.u32SessionId = s_ecAppRun.u32NextSessionId;
         s_ecAppSts.u8TriggerMask = u8TriggerMask;
@@ -167,14 +189,15 @@ void Ecall_OnTriggerMask(uint8_t u8TriggerMask)
         PowerService_SetEcallLock(1U);
         if (u8Automatic != 0U)
         {
-            Ecall_EnterDataPending();
+        	//这里已经准备好车辆数据
+            Ecall_SendMSDModule();
         }
         else
         {
             Ecall_EnterManualWindow();
         }
     }
-    else
+    else //10s内又收到自动/CAN碰撞报警，立即结束取消窗口，提前进入车辆数据交付状态
     {
         portENTER_CRITICAL();
         s_ecAppSts.u8TriggerMask |= u8TriggerMask;
@@ -183,7 +206,7 @@ void Ecall_OnTriggerMask(uint8_t u8TriggerMask)
         if ((s_ecAppSts.enState == ECALL_STATE_MANUAL_CANCEL_WINDOW)
             && (u8Automatic != 0U))
         {
-            Ecall_EnterDataPending();
+            Ecall_SendMSDModule();
         }
     }
 }
@@ -216,7 +239,7 @@ void Ecall_OnTrigger(EcallTrigger_t enTrigger)
 /*******************************************************
   * Name    :Ecall_OnManualCancel
   * Author  :xiaojunzhong
-  * Function:仅撤销尚未开始交付的纯手动事件；自动事件及待交付事件不取消。
+  * Function:手动取消报警
   * Version :V1.2.0
   * Data    :2026.11.03
 *******************************************************/
@@ -231,7 +254,7 @@ void Ecall_OnManualCancel(void)
 /*******************************************************
   * Name    :Ecall_ProcessManualWindow
   * Author  :xiaojunzhong
-  * Function:通过无符号时间差检查十秒窗口，兼容毫秒计数回绕。
+  * Function:检查十秒手动报警取消窗口
   * Version :V1.2.0
   * Data    :2026.11.03
 *******************************************************/
@@ -239,21 +262,32 @@ static void Ecall_ProcessManualWindow(void)
 {
     if ((osKernelSysTick() - s_ecAppRun.u32PhaseStartMs) >= ECALL_MANUAL_CANCEL_WINDOW_MS)
     {
-        Ecall_EnterDataPending();
+        Ecall_SendMSDModule();
     }
 }
 
 /*******************************************************
   * Name    :Ecall_ProcessDataPending
   * Author  :xiaojunzhong
-  * Function:消费一次协议交付结果；没有真实回报时不伪造完成或自动释放电源锁。
-  * Version :V1.2.0
-  * Data    :2026.11.03
+  * Function:非阻塞查询ACK预留口并消费既有交付邮箱，未收到结果持续等待。
+  * Version :V1.0.0
+  * Data    :2026.11.06
+  * Input   :无。
+  * Output  :无返回值。
+  * Caller  :EcallTask当前阶段处理。
+  * Precond :ACK服务返回结果时已完成序号校验及事件号关联。
+  * Failure :接口当前返回零；旧号和非法结果由交付邮箱拒绝，不自动超时。
+  * Effect  :消费真实结果后进入完成或失败，当前周期不处理新阶段。
 *******************************************************/
 static void Ecall_ProcessDataPending(void)
 {
+    MsdServiceAck_t stAck; /* 后续服务提供的最终交付结果，零返回时禁止读取。 */
     uint8_t u8Ready;   /* 是否存在尚未消费的结果。 */
     uint8_t u8Success; /* 只表示 MCU 到模组的数据交付。 */
+    if (MsdService_ReadAck(&stAck) != 0U)
+    {
+        (void)Ecall_ReportDelivery(stAck.u32SessionId, stAck.u8Success);
+    }
     portENTER_CRITICAL();
     u8Ready = s_ecAppRun.u8DeliveryReady;
     u8Success = s_ecAppRun.u8DeliverySuccess;
@@ -274,7 +308,7 @@ static void Ecall_ProcessDataPending(void)
 /*******************************************************
   * Name    :Ecall_Process
   * Author  :xiaojunzhong
-  * Function:每周期处理当前大阶段；新进入的阶段在下一周期执行。
+  * Function:eCall状态机周期处理入口
   * Version :V1.2.0
   * Data    :2026.11.03
 *******************************************************/
@@ -282,17 +316,17 @@ void Ecall_Process(void)
 {
     switch (s_ecAppSts.enState)
     {
-        case ECALL_STATE_MANUAL_CANCEL_WINDOW:
+        case ECALL_STATE_MANUAL_CANCEL_WINDOW://手动窗口判断是否满10S
             Ecall_ProcessManualWindow();
             break;
-        case ECALL_STATE_DATA_PENDING:
+        case ECALL_STATE_DATA_PENDING://检查是否交付车辆数据
             Ecall_ProcessDataPending();
             break;
-        case ECALL_STATE_COMPLETE:
-        case ECALL_STATE_FAILED:
+        case ECALL_STATE_COMPLETE://清理本次会话，回到待机
+        case ECALL_STATE_FAILED://清理会话，记录失败原因
             Ecall_EnterStandby();
             break;
-        case ECALL_STATE_STANDBY:
+        case ECALL_STATE_STANDBY: //待机，等待新的触发请求
         default:
             break;
     }

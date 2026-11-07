@@ -6,19 +6,14 @@
   * Data    :2026.08.26
 *******************************************************/
 #include "CanService.h"
+#include "Did.h"
 #include "Ecall.h"
-#include "EcallDiag.h"
-#include "EcallDiagService.h"
-#include "EcallHmi.h"
-#include "OutputService_Ecall.h"
-#include "GnssService.h"
 #include "Hmi.h"
 #include "InputService.h"
 #include "ModemPower.h"
 #include "OutputService.h"
 #include "PowerService.h"
 #include "TaskManager.h"
-#include "TimeService.h"
 #include "Uds.h"
 #include "CanMatrix.h"
 #include "CanTp.h"
@@ -27,7 +22,6 @@
 
 extern void EcallTask_Create(void);
 extern void CanTask_Create(void);
-extern void GnssTask_Create(void);
 extern void MonitoringTask_Create(void);
 extern void AppTask_Create(void);
 extern void PowTask_Create(void);
@@ -35,40 +29,35 @@ extern void PowTask_Create(void);
 /*******************************************************
   * Name    :TaskManager_Start
   * Author  :xiaojunzhong
-  * Function:初始化服务及诊断提示接口后创建任务，所有初值在并发执行前建立。
-  * Version :V1.1.0
-  * Data    :2026.11.01
+  * Function:初始化车辆事件、输入输出及通信服务后创建任务，初值在并发前建立。
+  * Version :V1.3.0
+  * Data    :2026.11.05
+  * Input   :无；由 main 在启动内核前调用。
+  * Output  :无返回值；建立服务初值并创建任务。
+  * Precond :基础硬件已初始化；配置读取须支持内核启动前同步完成。
+  * Failure :配置读取失败或非法时保持相应字段无效，不阻止紧急触发。
+  * Effect  :调用 Did_Init 装载车辆配置；不新增任务、ISR 或动态内存。
 *******************************************************/
 void TaskManager_Start(void)
 {
-    /* 一、建立共享数据和日志，任务创建前没有并发访问。 */
-    RteSys_InitMsdSignals();
+    RteSys_InitMsdSignals(); //建立共享数据和日志
+    /* 配置读取接口接通后，上电先装载 VIN、车型及能源，再允许事件冻结。 */
+    Did_Init();
     Hmi_Init();
     PowerService_Init();
-    GnssService_Init();
-    TimeService_Init();
     CanService_Init();
     InputService_Init();
     OutputService_Init();
     ModemPower_Init();
     Ecall_Init();
-    /* 二、建立自检代次及乘员提示接口；缺少真实检测项保持不支持。 */
-    RteSys_InitDiagnostics();
-    Ecall_DiagInit();
-    EcallDiagService_Init();
-    OutputService_InitEcallIndication();
-    Ecall_HmiInit();
+    /* 初始化原有通信框架；上电诊断由后续需求重新实现。 */
 	Uds_Init();
 	CanMatrix_Init();
 
-    /* 三、创建十个保留任务；无 AT、拨号和以太网任务。
-     * PowTask 管电源，AppTask 管输入/自检/提示，EcallTask 管事件仲裁。
-     * CAN/诊断原有任务保留；其时基和实板闭环仍需单独验收。 */
-    PowTask_Create();
-    GnssTask_Create();
-    CanTask_Create();
+    PowTask_Create(); //电源管理
+    CanTask_Create(); //CAN任务
     MonitoringTask_Create();
-    AppTask_Create();
+    AppTask_Create(); //SOS按键触发检测
     EcallTask_Create();
 	UdsTask_Create();
 	CanTpTask_Create();

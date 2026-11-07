@@ -1,7 +1,7 @@
 /*******************************************************
   * Name    :OutputService.h
   * Author  :xiaojunzhong
-  * Function:逻辑输出到物理引脚的映射，及可确认的乘员提示接口。
+  * Function:BSW 通用输出服务，映射逻辑电源和指示请求到物理引脚。
   * Version :V1.0.0
   * Data    :2026.09.06
 *******************************************************/
@@ -32,10 +32,9 @@ void OutputService_Init(void);
 void OutputService_Process10ms(void);
 /* 写入指定输出请求，物理执行留给周期处理。 */
 void OutputService_SetState(OutputServiceSignal_t enSignal, IO_Type enState);
-/* 保留原定位指示接口，只表示调用者提供的就绪结论。 */
-/* 保留原定位指示接口，只表示调用者提供的就绪结论。 */
-void OutputService_SetGnssReady(uint8_t u8Ready);
 /* 保留取消窗口提示入口，当前未绑定实际显示硬件。 */
 void OutputService_SetEcallCancelWindow(uint8_t u8Active);
+/* 自检故障映射到 D29/PD9；零灭、非零亮，实际 GPIO 留给输出周期。 */
+void OutputService_SetEcallFault(uint8_t u8HasFault);
 
 #endif

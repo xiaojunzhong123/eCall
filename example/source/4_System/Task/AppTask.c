@@ -1,21 +1,19 @@
 /*******************************************************
   * Name    :AppTask.c
   * Author  :xiaojunzhong
-  * Function:十毫秒调度输入、自检、提示及 SOS 长按判定。
+  * Function:任务层周期调度日志、输入、精简自检、通用输出及 SOS 判定。
   * Version :V1.0.0
   * Data    :2026.08.26
 *******************************************************/
 /* 流程阅读说明：
- * 每十毫秒：日志 -> 输入消抖 -> 自检证据 -> 故障确认 -> 提示仲裁 -> 物理输出。
+ * 每十毫秒：日志 -> 输入消抖 -> 点火有效时自检 -> 通用输出 -> SOS 意图。
  * 待机时 SOS 按住两秒产生手动触发；松开后再次按住一秒可在十秒窗口内取消。
  * 自动/CAN 触发不受手动取消控制；最终仲裁均由 EcallTask 执行。
  */
 
 #include "cmsis_os.h"
 #include "Hmi.h"
-#include "EcallDiag.h"
-#include "EcallDiagService.h"
-#include "EcallHmi.h"
+#include "EcallSelfCheck.h"
 #include "InputService.h"
 #include "OutputService.h"
 #include "RteSys.h"
@@ -28,9 +26,15 @@
 /*******************************************************
   * Name    :AppTask_Entry
   * Author  :xiaojunzhong
-  * Function:调度输入、无冲突诊断、提示仲裁和既有 SOS 逻辑，不等待 AT 或显示完成。
-  * Version :V1.1.0
-  * Data    :2026.11.01
+  * Function:调度日志和输入，点火有效时处理自检，继续通用输出和 SOS 逻辑。
+  * Version :V1.4.0
+  * Data    :2026.11.05
+  * Input   :argument 未使用；由调度器进入。
+  * Output  :无返回值，任务持续运行。
+  * Caller  :AppTask，普通优先级任务上下文。
+  * Precond :输入、输出及事件服务已初始化。
+  * Failure :未点火暂停自检消费并保留故障；未知来源仍保留待接入标记。
+  * Effect  :点火有效才消费自检邮箱；灯请求保持，原有事件逻辑和延时不变。
 *******************************************************/
 static void AppTask_Entry(void const *argument)
 {
@@ -48,9 +52,11 @@ static void AppTask_Entry(void const *argument)
     {
         Hmi_Process();
         InputService_Process10ms();
-        EcallDiagService_Process();
-        Ecall_DiagProcess();
-        Ecall_HmiProcess();
+        /* 点火有效后才消费自检结果；熄火不清除已有故障和灯请求。 */
+        if (RteSys_GetSwitchState(RTESYS_SWITCH_KL15) == RTE_SWITCH_ACTIVE)
+        {
+            Ecall_SelfCheckProcess();
+        }
         OutputService_Process10ms();
         enCurrentSosState = RteSys_GetSwitchState(RTESYS_SWITCH_SOS);
         enEcallState = Ecall_GetState();
@@ -75,7 +81,7 @@ static void AppTask_Entry(void const *argument)
                 if (u16SosTriggerHoldMs >= APP_TASK_SOS_TRIGGER_HOLD_MS)
                 {
                     HMI_LOG_APP("SOS manual trigger\r\n");
-                    EcallTask_RequestTrigger(ECALL_TRIGGER_MANUAL);
+                    EcallTask_RequestTrigger(ECALL_TRIGGER_MANUAL); //SOS手动报警
                     u8ManualTriggerSent = 1U;
                 }
             }
@@ -128,9 +134,15 @@ static void AppTask_Entry(void const *argument)
 /*******************************************************
   * Name    :AppTask_Create
   * Author  :xiaojunzhong
-  * Function:创建普通优先级输入、自检及提示任务，沿用原栈配置。
-  * Version :V1.0.0
-  * Data    :2026.08.26
+  * Function:创建普通优先级输入及通用输出任务，沿用原栈配置。
+  * Version :V1.1.0
+  * Data    :2026.11.05
+  * Input   :无；启动阶段调用一次。
+  * Output  :无返回值，沿用现有任务创建方式。
+  * Caller  :TaskManager_Start，内核启动前。
+  * Precond :服务初值已建立，RTOS 堆可用。
+  * Failure :任务创建失败行为沿用现有实现，本轮不扩展处理。
+  * Effect  :创建 AppTask，不新增任务、ISR 或缓冲区。
 *******************************************************/
 void AppTask_Create(void)
 {

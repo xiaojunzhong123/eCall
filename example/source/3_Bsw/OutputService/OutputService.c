@@ -1,7 +1,7 @@
 /*******************************************************
   * Name    :OutputService.c
   * Author  :xiaojunzhong
-  * Function:逻辑输出到物理引脚的映射，及可确认的乘员提示接口。
+  * Function:BSW 通用输出服务，映射逻辑电源和指示请求到物理引脚。
   * Version :V1.0.0
   * Data    :2026.09.06
 *******************************************************/
@@ -112,17 +112,6 @@ void OutputService_SetState(OutputServiceSignal_t enSignal, IO_Type enState)
     }
 }
 
-/*******************************************************
-  * Name    :OutputService_SetGnssReady
-  * Author  :xiaojunzhong
-  * Function:保留原定位指示接口，只表示调用者提供的就绪结论。
-  * Version :V1.0.0
-  * Data    :2026.09.11
-*******************************************************/
-void OutputService_SetGnssReady(uint8_t u8Ready)
-{
-    OutputService_SetState(OUTPUT_SERVICE_SIG_INDICATOR_1, (u8Ready != 0U) ? HIGH : LOW);
-}
 
 
 /*******************************************************
@@ -135,4 +124,23 @@ void OutputService_SetGnssReady(uint8_t u8Ready)
 void OutputService_SetEcallCancelWindow(uint8_t u8Active)
 {
     (void)u8Active;
+}
+
+/*******************************************************
+  * Name    :OutputService_SetEcallFault
+  * Author  :xiaojunzhong
+  * Function:将精简自检故障映射到 D29，PD9 高电平点亮。
+  * Version :V1.0.0
+  * Data    :2026.11.05
+  * Input   :零无故障，非零有故障；来源由自检模块统一汇总。
+  * Output  :无返回值；只更新 INDICATOR_1 逻辑请求。
+  * Caller  :启动阶段或 AppTask，不允许 ISR 调用。
+  * Precond :OutputService 已初始化，D29 所需外部三点三伏供电有效。
+  * Failure :没有光学或电流反馈，不宣称灯实物已经点亮。
+  * Effect  :不操作第二盏灯、电源锁或取消窗口；GPIO 在输出周期应用。
+*******************************************************/
+void OutputService_SetEcallFault(uint8_t u8HasFault)
+{
+    /* 最新原理图第4页：PD9 -> Q19 -> D29，沿用现有高有效映射。 */
+    OutputService_SetState(OUTPUT_SERVICE_SIG_INDICATOR_1, (u8HasFault != 0U) ? HIGH : LOW);
 }

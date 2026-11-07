@@ -7,6 +7,8 @@
 *******************************************************/
 /*-------------include file---------------------------*/
 #include "CanMatrix_Cfg.h"
+/* 任务启动日志使用已有声明，避免隐式推断函数类型。 */
+#include "Hmi.h"
 /*-------------variable statement---------------------*/
 static Can_Type                  g_CanMatrixRxMsg;
 static CanMatrix_DtcMsgInfo_TYPE g_CanMatrixDtcMsgInfo[CANMATRIX_RX_LIST_NUM];
@@ -15,10 +17,16 @@ static CanMatrix_TxMsgInfo_Type  g_CanMatrixTxMsgInfo[CANMATRIX_TX_LIST_NUM];
 /*-------------function-------------------------------*/
 /*******************************************************
   * Name    :CanMatrix_Init
-  * Author  :WangHu
-  * Function:****
-  * Version :V1.0.0
-  * Data    :2023.12.12
+  * Author  :xiaojunzhong
+  * Function:初始化矩阵缓存，仅调用已配置的接收初始化回调。
+  * Version :V1.2.0
+  * Data    :2026.11.07
+  * Caller  :TaskManager_Start，任务创建前一次。
+  * Input   :沿用既有参数；接收表回调允许为空。
+  * Output  :沿用既有返回约定，不新增业务成功结论。
+  * Precond :共享RTE及CAN服务已完成启动初始化。
+  * Failure :无回调项只保留缓存/匹配行为，不能调用空函数指针。
+  * Effect  :0x10C不再经矩阵初始化SRS，统一由共享RTE启动初始化。
 *******************************************************/
 void CanMatrix_Init(void)
 {
@@ -27,7 +35,10 @@ void CanMatrix_Init(void)
     CanMatrix_DefaultDataInit();
     for (i = 0; i < CANMATRIX_RX_LIST_NUM; i++)
     {
-        g_CanMatrixRxList[i].dataHandleFun(CANMATRIX_RX_STATE_INIT);
+        if (g_CanMatrixRxList[i].dataHandleFun != NULL)
+        {
+            g_CanMatrixRxList[i].dataHandleFun(CANMATRIX_RX_STATE_INIT);
+        }
     }
 }
 
@@ -67,9 +78,15 @@ static uint8_t CanMatrix_IsMsdRxId(uint32_t u32Id)
 /*******************************************************
   * Name    :CanMatrix_ChechRxMsg
   * Author  :xiaojunzhong
-  * Function:Route legacy non-MSD frames; MSD frames have one separate CAN-task owner.
-  * Version :V1.1.0
-  * Data    :2026.10.31
+  * Function:路由普通帧并保护可选回调，三项专属观测仍跳过旧接收入口。
+  * Version :V1.2.0
+  * Data    :2026.11.07
+  * Caller  :CanMatrixRxMsgTask，既有接收队列消费者。
+  * Input   :沿用既有参数；接收表回调允许为空。
+  * Output  :沿用既有返回约定，不新增业务成功结论。
+  * Precond :共享RTE及CAN服务已完成启动初始化。
+  * Failure :无回调项只保留缓存/匹配行为，不能调用空函数指针。
+  * Effect  :不把普通CanIf队列变成第二个SRS生产者。
 *******************************************************/
 static void CanMatrix_ChechRxMsg(Can_Type *p_msg)
 {
@@ -90,7 +107,10 @@ static void CanMatrix_ChechRxMsg(Can_Type *p_msg)
                 || (g_CanMatrixRxList[i].IsChangeIn == FALSE))
             {
                 CanMatrix_Copy(g_CanMatrixRxList[i].p_buff, p_msg->buff, p_msg->len);
-                g_CanMatrixRxList[i].dataHandleFun(CANMATRIX_RX_STATE_NORMAL);
+                if (g_CanMatrixRxList[i].dataHandleFun != NULL)
+                {
+                    g_CanMatrixRxList[i].dataHandleFun(CANMATRIX_RX_STATE_NORMAL);
+                }
             }
             g_CanMatrixRxMsgInfo[i].flag = TRUE;
             break;
@@ -110,9 +130,15 @@ static void CanMatrix_ChechRxMsg(Can_Type *p_msg)
 /*******************************************************
   * Name    :CanMatrix_CheckRxIfLost
   * Author  :xiaojunzhong
-  * Function:Monitor legacy non-MSD reception; MSD freshness is qualified by RTE.
-  * Version :V1.1.0
-  * Data    :2026.10.31
+  * Function:沿用普通报文丢失监测，空回调项不执行超时业务。
+  * Version :V1.2.0
+  * Data    :2026.11.07
+  * Caller  :CanMatrixRxMsgTask周期处理。
+  * Input   :沿用既有参数；接收表回调允许为空。
+  * Output  :沿用既有返回约定，不新增业务成功结论。
+  * Precond :共享RTE及CAN服务已完成启动初始化。
+  * Failure :无回调项只保留缓存/匹配行为，不能调用空函数指针。
+  * Effect  :三项车辆观测继续由RTE按原采样时间判断有效期。
 *******************************************************/
 static void CanMatrix_CheckRxIfLost(void)
 {
@@ -140,7 +166,10 @@ static void CanMatrix_CheckRxIfLost(void)
             else if (g_CanMatrixRxMsgInfo[i].time >= g_CanMatrixRxList[i].lostTime)
             {
                 g_CanMatrixRxMsgInfo[i].lost = TRUE;
-                g_CanMatrixRxList[i].dataHandleFun(CANMATRIX_RX_STATE_LOST);
+                if (g_CanMatrixRxList[i].dataHandleFun != NULL)
+                {
+                    g_CanMatrixRxList[i].dataHandleFun(CANMATRIX_RX_STATE_LOST);
+                }
             }
             else
             {
@@ -479,9 +508,15 @@ void CanMatrixRxMsgTask_Create(void)
 /*******************************************************
   * Name    :CanMatrix_ProcessMsdFrame
   * Author  :xiaojunzhong
-  * Function:Decode approved MSD frames using the existing matrix callbacks before triggering eCall.
-  * Version :V1.1.0
-  * Data    :2026.10.31
+  * Function:匹配并缓存三项车辆帧；SRS无回调，由CanService唯一发布。
+  * Version :V1.2.0
+  * Data    :2026.11.07
+  * Caller  :CanTask经CanService_ProcessRx调用。
+  * Input   :沿用既有参数；接收表回调允许为空。
+  * Output  :沿用既有返回约定，不新增业务成功结论。
+  * Precond :共享RTE及CAN服务已完成启动初始化。
+  * Failure :无回调项只保留缓存/匹配行为，不能调用空函数指针。
+  * Effect  :保持匹配成功返回一，使CanService继续完成SRS发布与触发；NULL不表示格式失败。
 *******************************************************/
 uint8_t CanMatrix_ProcessMsdFrame(uint32_t u32Id, uint8_t u8Fd, const uint8_t *pu8Payload, uint8_t u8Length)
 {
@@ -511,7 +546,10 @@ uint8_t CanMatrix_ProcessMsdFrame(uint32_t u32Id, uint8_t u8Fd, const uint8_t *p
             {
                 g_CanMatrixRxList[u8Index].p_buff[u8Byte] = pu8Payload[u8Byte];
             }
-            g_CanMatrixRxList[u8Index].dataHandleFun(CANMATRIX_RX_STATE_NORMAL);
+            if (g_CanMatrixRxList[u8Index].dataHandleFun != NULL)
+            {
+                g_CanMatrixRxList[u8Index].dataHandleFun(CANMATRIX_RX_STATE_NORMAL);
+            }
             return 1U;
         }
     }

@@ -9,18 +9,18 @@
  * sheet TBOX_TBOX_CANFD. Each message/signal cites its source row below.
  * Def.h is used unchanged. All 55 layouts were checked against matrix bits.
  *
- * 应用表仅含 38 Rx + 12 Tx。2 个 NM 和 3 个诊断报文由专用模块处理。
- * 外部配置需同步：CANNM_ID=0x405，UDS_PHYS_ADDR_ID=0x705，
- * UDS_RESP_ADDR_ID=0x785；UDS_FUNC_ADDR_ID=0x7DF。本文件未修改外部模块。
- * 必须同时替换配套 CanMatrix.c；旧核心不支持此版本的超时与发送行为。
- * RxList/TxList 参数直接填写数值；修改周期、长度或超时请编辑 Cfg.c 的表。
- * 周期报文按 CANFD 规范 7.6 的通信超时规则配置；事件报文不做周期超时。
- * 本规则是通信监测基线，不替代功能特定的信号新鲜度要求。
- * 已配置 CCU 关键报文 0x116 的节点状态监测，不假定网关源节点在线。
- * legacy DTC 表仍为 0；CCU 状态通过回调/查询提供，需绑定 DTC 服务。
- * 上层需通过 CanMatrix_SetRxMonitorAllowed 接入上电、供电与恢复门控。
- * 初始监控关闭；RTE 绑定、CRC/计数器验证与更新仍需接入。
- * 信号空白初始值及未定义的保留位暂用 0，已在初始化代码中逐项标注。
+ * Ó¦ÓÃ±í½öº¬ 38 Rx + 12 Tx¡£2 ¸ö NM ºÍ 3 ¸öÕï¶Ï±¨ÎÄÓÉ×¨ÓÃÄ£¿é´¦Àí¡£
+ * Íâ²¿ÅäÖÃÐèÍ¬²½£ºCANNM_ID=0x405£¬UDS_PHYS_ADDR_ID=0x705£¬
+ * UDS_RESP_ADDR_ID=0x785£»UDS_FUNC_ADDR_ID=0x7DF¡£±¾ÎÄ¼þÎ´ÐÞ¸ÄÍâ²¿Ä£¿é¡£
+ * ±ØÐëÍ¬Ê±Ìæ»»ÅäÌ× CanMatrix.c£»¾ÉºËÐÄ²»Ö§³Ö´Ë°æ±¾µÄ³¬Ê±Óë·¢ËÍÐÐÎª¡£
+ * RxList/TxList ²ÎÊýÖ±½ÓÌîÐ´ÊýÖµ£»ÐÞ¸ÄÖÜÆÚ¡¢³¤¶È»ò³¬Ê±Çë±à¼­ Cfg.c µÄ±í¡£
+ * ÖÜÆÚ±¨ÎÄ°´ CANFD ¹æ·¶ 7.6 µÄÍ¨ÐÅ³¬Ê±¹æÔòÅäÖÃ£»ÊÂ¼þ±¨ÎÄ²»×öÖÜÆÚ³¬Ê±¡£
+ * ±¾¹æÔòÊÇÍ¨ÐÅ¼à²â»ùÏß£¬²»Ìæ´ú¹¦ÄÜÌØ¶¨µÄÐÅºÅÐÂÏÊ¶ÈÒªÇó¡£
+ * ÒÑÅäÖÃ CCU ¹Ø¼ü±¨ÎÄ 0x116 µÄ½Úµã×´Ì¬¼à²â£¬²»¼Ù¶¨Íø¹ØÔ´½ÚµãÔÚÏß¡£
+ * legacy DTC ±íÈÔÎª 0£»CCU ×´Ì¬Í¨¹ý»Øµ÷/²éÑ¯Ìá¹©£¬Ðè°ó¶¨ DTC ·þÎñ¡£
+ * ÉÏ²ãÐèÍ¨¹ý CanMatrix_SetRxMonitorAllowed ½ÓÈëÉÏµç¡¢¹©µçÓë»Ö¸´ÃÅ¿Ø¡£
+ * ³õÊ¼¼à¿Ø¹Ø±Õ£»RTE °ó¶¨¡¢CRC/¼ÆÊýÆ÷ÑéÖ¤Óë¸üÐÂÈÔÐè½ÓÈë¡£
+ * ÐÅºÅ¿Õ°×³õÊ¼Öµ¼°Î´¶¨ÒåµÄ±£ÁôÎ»ÔÝÓÃ 0£¬ÒÑÔÚ³õÊ¼»¯´úÂëÖÐÖðÏî±ê×¢¡£
  */
 #ifndef _CANMATRIX_CFG_H_
 #define _CANMATRIX_CFG_H_

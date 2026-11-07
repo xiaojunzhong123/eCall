@@ -12,6 +12,8 @@
 *******************************************************/
 /*-------------include file---------------------------*/
 #include "CanTp_Cfg.h"
+/* 任务启动日志使用已有声明，避免隐式推断函数类型。 */
+#include "Hmi.h"
 #include "CanTp.h"
 /*-------------variable statement---------------------*/
 static CanTp_State_Type    g_CanTpState;

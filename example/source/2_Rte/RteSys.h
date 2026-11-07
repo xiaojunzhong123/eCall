@@ -152,7 +152,9 @@ extern RteSwitchState_t RteSys_GetOutputState(RteSysOutputId_t enOutput);
 #define RTESYS_MSD_GEAR_MAX_AGE_MS        200U
 #define RTESYS_MSD_PUBLISH_MAX_AGE_MS     5000U
 
-/* Value-copy contracts only. RteSys.c owns all instances.
+/* 保留的通用CAN信号字典供现有矩阵读取；定位/日历无MCU采样生产者。
+ * 不把这些兼容字段加入对模组的车辆交付数据。
+ * Value-copy contracts only. RteSys.c owns all instances.
  * Received data is not CRC/counter verified unless explicitly marked.
  */
 typedef struct
@@ -230,7 +232,7 @@ typedef struct
 
 typedef struct
 {
-    uint8_t au8Vin[RTESYS_MSD_VIN_LENGTH]; /* 十七字节 VIN，不要求末尾有字符串终止符。 */
+    uint8_t au8Vin[RTESYS_MSD_VIN_LENGTH]; /* 17字节 VIN*/
     uint8_t u8VinValid; /* VIN 长度和字符资格有效标志。 */
     uint8_t u8VehicleType; /* 车型代码，映射由项目配置确认。 */
     uint8_t u8VehicleTypeValid; /* 车型代码是否已确认可用。 */
@@ -341,10 +343,7 @@ void RteSys_PublishMsdImpact(const RteSysMsdImpact_t *pstImpact);
 void RteSys_PublishMsdPositionQuality(const RteSysMsdPositionQuality_t *pstQuality);
 
 
-/* 车辆数据视图保留当前位置和最多两个真实历史点。
- * 经度/纬度为度乘一千万，航向为度乘一百；不在 RTE 编码 MSD。
- * MCU 与模组自定义协议的字段映射待确认，缺失来源必须保留无效标志。 */
-#define RTESYS_MSD_CS_HISTORY_COUNT        2U
+/* 车辆交付与模组定位/时间分离；七种组合能源由确认配置提供。 */
 #define RTESYS_MSD_PROPULSION_GASOLINE     0x01U
 #define RTESYS_MSD_PROPULSION_DIESEL       0x02U
 #define RTESYS_MSD_PROPULSION_CNG          0x04U
@@ -354,36 +353,54 @@ void RteSys_PublishMsdPositionQuality(const RteSysMsdPositionQuality_t *pstQuali
 #define RTESYS_MSD_PROPULSION_OTHER        0x40U
 #define RTESYS_MSD_PROPULSION_MASK         0x7FU
 
-typedef struct
-{
-    int32_t i32LatitudeE7; /* 纬度，度乘一千万，有效性另存。 */
-    int32_t i32LongitudeE7; /* 经度，度乘一千万，有效性另存。 */
-    uint32_t u32UtcSeconds; /* 来源 UTC 秒，不能用查询时刻替代。 */
-} RteSysMsdPosition_t;
 
 typedef struct
 {
-    uint32_t u32SnapshotMs; /* 读取事故快照的单调毫秒时刻，不代替事故 UTC。 */
-    uint32_t u32Revision; /* 发布版本；只计发布，不是时间或 MSD 编号。 */
-    uint32_t u32HeadingSampleMs; /* 航向独立来源采样时刻，毫秒。 */
-    RteSysMsdNavigation_t stNavigation; /* 物理位置、航向和速度组。 */
-    RteSysMsdUtc_t stUtc; /* UTC 日历和来源组。 */
-    RteSysMsdVehicle_t stVehicle; /* 车辆低频身份配置组。 */
-    RteSysMsdSrs_t stSrs; /* SRS 完整观测组。 */
-    RteSysMsdGear_t stGear; /* 挡位完整观测组。 */
-    RteSysMsdLoad_t stLoad; /* 载重及人数估算组。 */
-    RteSysMsdPositionQuality_t stPositionQuality; /* 独立位置质量组。 */
-    RteSysMsdPosition_t astRecentPosition[RTESYS_MSD_CS_HISTORY_COUNT]; /* 最多两个符合顺序和资格的历史物理位置。 */
-    uint8_t u8RecentPositionCount; /* 实际可用的标准历史点数，零至二。 */
-    uint8_t u8PropulsionMask; /* 汽油、柴油、CNG、LPG、电、氢、其他的七位组合。 */
+    uint32_t u32SnapshotMs; /* 本机读取时刻，毫秒；不是事故UTC或平台时间。 */
+    uint32_t u32Revision; /* 车辆来源发布版本，不是标准数据消息编号。 */
+    RteSysMsdVehicle_t stVehicle; /* VIN和车型等低频车辆配置及有效性。 */
+    RteSysMsdSrs_t stSrs; /* 碰撞和气囊观测，接收不代表完整性校验通过。 */
+    RteSysMsdGear_t stGear; /* 挡位来源及年龄。 */
+    RteSysMsdLoad_t stLoad; /* 公斤载重和独立人数估算。 */
+    RteSysMsdImpact_t stImpact; /* 可选车辆冲击/翻滚及逐项有效性。 */
+    uint8_t u8PropulsionMask; /* 七种组合能源位，不从运行状态推断。 */
     uint8_t u8PropulsionValid; /* 组合能源配置是否已经确认。 */
-} RteSysMsdSnapshot_t;
+} RteSysVehicleSnapshot_t;
 
 /* 发布独立的七位组合能源配置，不从车辆运行状态推断能源。 */
 /* 发布独立的七位组合能源配置，不从车辆运行状态推断能源。 */
 void RteSys_PublishMsdPropulsion(uint8_t u8PropulsionMask, uint8_t u8Valid);
-/* 捕获同一发布版本的事故数据，锁外判定有效性并投影最多两个真实历史点。 */
-/* 捕获同一发布版本的事故数据，锁外判定有效性并投影最多两个真实历史点。 */
-uint8_t RteSys_ReadMsdSnapshot(RteSysMsdSnapshot_t *pstSnapshot);
+/* 任务上下文复制车辆数据；成功只表示复制，不保证每个字段有效。 */
+uint8_t RteSys_ReadVehicleSnapshot(RteSysVehicleSnapshot_t *pstSnapshot);
+
+/* 模组通话状态直接映射矩阵TBOX_ECallSts，不从MCU事件或数据ACK推导。 */
+typedef enum
+{
+    RTESYS_MODEM_CALL_NO_DISPLAY = 0U, /* 无显示；仅表示模组明确报告的状态。 */
+    RTESYS_MODEM_CALL_OUTGOING,        /* 模组正在发起呼叫。 */
+    RTESYS_MODEM_CALL_INCOMING,        /* 模组收到来电。 */
+    RTESYS_MODEM_CALL_CONNECTED,       /* 模组已建立通话。 */
+    RTESYS_MODEM_CALL_ENDED            /* 模组明确报告通话结束。 */
+} RteSysModemCallState_t;
+
+#define RTESYS_MODEM_CALL_DURATION_MAX_SECONDS 86399UL /* 矩阵时长上限：二十三时五十九分五十九秒。 */
+
+typedef struct
+{
+    uint32_t u32UpdateMs;       /* 最后一次合法模组观测的本机毫秒时刻，不是呼叫开始时刻。 */
+    uint32_t u32DurationSeconds; /* 模组提供的累计通话秒数，不由MCU累计；有效时零至八万六千三百九十九。 */
+    uint8_t u8CallState;        /* 0-4，编码与上方枚举及现有矩阵一致。 */
+    uint8_t u8SourceValid;      /* 一表示已获得有效来源；零表示未接入或来源已失效。 */
+    uint8_t u8DurationValid;    /* 一表示模组提供有效时长；零时CAN发布时长不可用编码。 */
+} RteSysModemCallStatus_t;
+
+/* 协议任务发布已校验的模组状态；时长有效位只接受零或一，返回一表示缓存已更新。
+ * 仅允许单个协议任务生产，不在ISR调用；无效输入不覆盖上次结果，不改变eCall事件或电源锁。
+ */
+uint8_t RteSys_PublishModemCallStatus(RteSysModemCallState_t enCallState, uint32_t u32DurationSeconds, uint8_t u8DurationValid);
+/* 协议任务在断链或模组重启时使来源失效，保留最后观测，不伪造结束或恢复音量。 */
+void RteSys_InvalidateModemCallStatus(void);
+/* 任务上下文获取短临界区保护的值副本；返回一表示复制成功，来源有效性须另查。 */
+uint8_t RteSys_ReadModemCallStatus(RteSysModemCallStatus_t *pstStatus);
 
 #endif

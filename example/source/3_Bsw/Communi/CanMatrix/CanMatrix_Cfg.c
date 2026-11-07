@@ -1,4 +1,4 @@
-ï»¿/*******************************************************
+/*******************************************************
   * Name    :CanMatrix_Cfg.c
   * Author  :xiaojunzhong
   * Function:TBOX CAN matrix configuration
@@ -9,18 +9,18 @@
  * sheet TBOX_TBOX_CANFD. Each message/signal cites its source row below.
  * Def.h is used unchanged. All 55 layouts were checked against matrix bits.
  *
- * åº”ç”¨è¡¨ä»…å« 38 Rx + 12 Txã€‚2 ä¸ª NM å’Œ 3 ä¸ªè¯Šæ–­æŠ¥æ–‡ç”±ä¸“ç”¨æ¨¡å—å¤„ç†ã€‚
- * å¤–éƒ¨é…ç½®éœ€åŒæ­¥ï¼šCANNM_ID=0x405ï¼ŒUDS_PHYS_ADDR_ID=0x705ï¼Œ
- * UDS_RESP_ADDR_ID=0x785ï¼›UDS_FUNC_ADDR_ID=0x7DFã€‚æœ¬æ–‡ä»¶æœªä¿®æ”¹å¤–éƒ¨æ¨¡å—ã€‚
- * å¿…é¡»åŒæ—¶æ›¿æ¢é…å¥— CanMatrix.cï¼›æ—§æ ¸å¿ƒä¸æ”¯æŒæ­¤ç‰ˆæœ¬çš„è¶…æ—¶ä¸å‘é€è¡Œä¸ºã€‚
- * å‘¨æœŸæŠ¥æ–‡æŒ‰ CANFD è§„èŒƒ 7.6 çš„é€šä¿¡è¶…æ—¶è§„åˆ™é…ç½®ï¼›äº‹ä»¶æŠ¥æ–‡ä¸åšå‘¨æœŸè¶…æ—¶ã€‚
- * æœ¬è§„åˆ™æ˜¯é€šä¿¡ç›‘æµ‹åŸºçº¿ï¼Œä¸æ›¿ä»£åŠŸèƒ½ç‰¹å®šçš„ä¿¡å·æ–°é²œåº¦è¦æ±‚ã€‚
+ * Ó¦ÓÃ±í½öº¬ 38 Rx + 12 Tx¡£2 ¸ö NM ºÍ 3 ¸öÕï¶Ï±¨ÎÄÓÉ×¨ÓÃÄ£¿é´¦Àí¡£
+ * Íâ²¿ÅäÖÃĞèÍ¬²½£ºCANNM_ID=0x405£¬UDS_PHYS_ADDR_ID=0x705£¬
+ * UDS_RESP_ADDR_ID=0x785£»UDS_FUNC_ADDR_ID=0x7DF¡£±¾ÎÄ¼şÎ´ĞŞ¸ÄÍâ²¿Ä£¿é¡£
+ * ±ØĞëÍ¬Ê±Ìæ»»ÅäÌ× CanMatrix.c£»¾ÉºËĞÄ²»Ö§³Ö´Ë°æ±¾µÄ³¬Ê±Óë·¢ËÍĞĞÎª¡£
+ * ÖÜÆÚ±¨ÎÄ°´ CANFD ¹æ·¶ 7.6 µÄÍ¨ĞÅ³¬Ê±¹æÔòÅäÖÃ£»ÊÂ¼ş±¨ÎÄ²»×öÖÜÆÚ³¬Ê±¡£
+ * ±¾¹æÔòÊÇÍ¨ĞÅ¼à²â»ùÏß£¬²»Ìæ´ú¹¦ÄÜÌØ¶¨µÄĞÅºÅĞÂÏÊ¶ÈÒªÇó¡£
  
- * å·²é…ç½® CCU å…³é”®æŠ¥æ–‡ 0x116 çš„èŠ‚ç‚¹çŠ¶æ€ç›‘æµ‹ï¼Œä¸å‡å®šç½‘å…³æºèŠ‚ç‚¹åœ¨çº¿ã€‚
- * legacy DTC è¡¨ä»ä¸º 0ï¼›CCU çŠ¶æ€é€šè¿‡å›è°ƒ/æŸ¥è¯¢æä¾›ï¼Œéœ€ç»‘å®š DTC æœåŠ¡ã€‚
- * ä¸Šå±‚éœ€é€šè¿‡ CanMatrix_SetRxMonitorAllowed æ¥å…¥ä¸Šç”µã€ä¾›ç”µä¸æ¢å¤é—¨æ§ã€‚
- * åˆå§‹ç›‘æ§å…³é—­ï¼›RTE ç»‘å®šã€CRC/è®¡æ•°å™¨éªŒè¯ä¸æ›´æ–°ä»éœ€æ¥å…¥ã€‚
- * ä¿¡å·ç©ºç™½åˆå§‹å€¼åŠæœªå®šä¹‰çš„ä¿ç•™ä½æš‚ç”¨ 0ï¼Œå·²åœ¨åˆå§‹åŒ–ä»£ç ä¸­é€é¡¹æ ‡æ³¨ã€‚
+ * ÒÑÅäÖÃ CCU ¹Ø¼ü±¨ÎÄ 0x116 µÄ½Úµã×´Ì¬¼à²â£¬²»¼Ù¶¨Íø¹ØÔ´½ÚµãÔÚÏß¡£
+ * legacy DTC ±íÈÔÎª 0£»CCU ×´Ì¬Í¨¹ı»Øµ÷/²éÑ¯Ìá¹©£¬Ğè°ó¶¨ DTC ·şÎñ¡£
+ * ÉÏ²ãĞèÍ¨¹ı CanMatrix_SetRxMonitorAllowed ½ÓÈëÉÏµç¡¢¹©µçÓë»Ö¸´ÃÅ¿Ø¡£
+ * ³õÊ¼¼à¿Ø¹Ø±Õ£»RTE °ó¶¨¡¢CRC/¼ÆÊıÆ÷ÑéÖ¤Óë¸üĞÂÈÔĞè½ÓÈë¡£
+ * ĞÅºÅ¿Õ°×³õÊ¼Öµ¼°Î´¶¨ÒåµÄ±£ÁôÎ»ÔİÓÃ 0£¬ÒÑÔÚ³õÊ¼»¯´úÂëÖĞÖğÏî±ê×¢¡£
  */
 /*-------------include file---------------------------*/
 #include "CanMatrix_Cfg.h"
@@ -1031,39 +1031,7 @@ static uint8_t CanMatrix_TxTBOX_RemReqMsgFun(CanMatrix_TxState_Type state)
     return 0;
 }
 
-/*******************************************************
-  * Name    :CanMatrix_RxSRS_InfoMsgFun
-  * Author  :LoH
-  * Function:Decode CAN observations into the corresponding RTE group.
-  * Version :V1.0.0
-  * Data    :2026.10.29
-*******************************************************/
-static void CanMatrix_RxSRS_InfoMsgFun(CanMatrix_RxState_Type state)
-{
-    RteSysMsdSrs_t stSignal;
-
-    switch (state)
-    {
-        case CANMATRIX_RX_STATE_INIT:
-        case CANMATRIX_RX_STATE_LOST:
-            RteSys_UpdateMsdSrs(NULL);
-            break;
-        case CANMATRIX_RX_STATE_NORMAL:
-            (void)memset(&stSignal, 0, sizeof(stSignal));
-            stSignal.u32UpdateMs = osKernelSysTick();
-            stSignal.u8Received = 1U;
-            /* CRC/counter verification has no confirmed implementation yet. */
-            stSignal.u8IntegrityVerified = 0U;
-            stSignal.u8Crash = (uint8_t)g_RxSRS_InfoMsg.bits.SRS_CrashOutPutSts;
-            stSignal.u8AirbagWarning = (uint8_t)g_RxSRS_InfoMsg.bits.SRS_AirbagWarningSts;
-            stSignal.u8Counter = (uint8_t)g_RxSRS_InfoMsg.bits.SRS_RollingCounter;
-            stSignal.u8Checksum = (uint8_t)g_RxSRS_InfoMsg.bits.SRS_Checksum;
-            RteSys_UpdateMsdSrs(&stSignal);
-            break;
-        default:
-            break;
-    }
-}
+/* SRS_InfoÓÉCanTaskÖĞµÄCanService·¢²¼£¬½ÓÊÕ±í½ö±£Áô±¨ÎÄ»º´æÓëÆ¥Åä¡£ */
 
 /*******************************************************
   * Name    :CanMatrix_RxCCU_VehGearMsgFun
@@ -1670,32 +1638,51 @@ static void CanMatrix_RxCCU_VehHVStMsgFun(CanMatrix_RxState_Type state)
 /*******************************************************
   * Name    :CanMatrix_TxTBOX_EcallInfoMsgFun
   * Author  :xiaojunzhong
-  * Function:Handle Tx TBOX_EcallInfo, matrix row 176
-  * Version :V1.2.0
-  * Data    :2026.10.20
+  * Function:·¢ËÍÇ°°ó¶¨Ä£×éÕæÊµÍ¨»°¹Û²â£»½ö·¢²¼×´Ì¬£¬ÓÉ³µ»ú×ÔĞĞ¾²Òô¡£
+  * Version :V1.3.0
+  * Data    :2026.11.07
+  * Input   :¾ØÕó·¢ËÍ½×¶Î£»Ö»ÔÚUPDATE½×¶Î¶ÁÈ¡RTE¡£
+  * Output  :Áã±íÊ¾ÎŞ¶îÍâÊÂ¼şÖØ·¢£»Ô­±¨ÎÄ¼ÌĞø°´Ò»°ÙºÁÃëÖÜÆÚ´¦Àí¡£
+  * Caller  :CanManageTaskÖĞµÄCanMatrix_TxMsgMain£¬Î¨Ò»Ğ´±¾±¨ÎÄ»º´æµÄÈÎÎñ¡£
+  * Precond :Ä£×éĞ­ÒéÈÎÎñÒÑ·¢²¼ºÏ·¨×´Ì¬£»Ê×´ÎÎŞÀ´Ô´Ê±ÑØÓÃ¾ØÕóÁã³õÊ¼Öµ¡£
+  * Failure :À´Ô´ÎŞĞ§Ê±±£Áô×îºó·¢ËÍÄÚÈİ£¬²»ÒòACK»òMCU´ı»úÎ±ÔìÍ¨»°½áÊø¡£
+  * Effect  :Ö»¸Ä±¾±¨ÎÄËÄ¸öÒµÎñ×Ö¶Î£¬±£ÁôÆäÓàÎ»£»²»²Ù×÷GPIO¡¢ÒôÆµµçÔ´»òUART¡£
 *******************************************************/
 static uint8_t CanMatrix_TxTBOX_EcallInfoMsgFun(CanMatrix_TxState_Type state)
 {
+    RteSysModemCallStatus_t stCallStatus; /* Í¬Ò»´Î¶ÌÁÙ½çÇøÈ¡µÃµÄ×´Ì¬ºÍÀÛ¼ÆÃëÊı£¬·ÀÖ¹¿ç°æ±¾»ìÓÃ¡£ */
+
     switch (state)
     {
         case CANMATRIX_TX_STATE_CHECK:
             break;
         case CANMATRIX_TX_STATE_UPDATE:
-            /* TODO: bind application/RTE values; use raw encoding shown below.
-             * Caller may prefill the table's Tx buffer on the same owner task.
-             */
-            /* Row 177: TBOX_ECallSts; phys=raw*1+(0); fields=TBOX_ECallSts. */
-            /* Row 178: TBOX_EcallTiSec; phys=raw*1+(0); fields=TBOX_EcallTiSec. */
-            /* Row 179: TBOX_EcallTiMin; phys=raw*1+(0); fields=TBOX_EcallTiMin. */
-            /* Row 180: TBOX_EcallTiHr; phys=raw*1+(0); fields=TBOX_EcallTiHr. */
+            if ((RteSys_ReadModemCallStatus(&stCallStatus) != 0U)
+                && (stCallStatus.u8SourceValid != 0U))
+            {
+                g_TxTBOX_EcallInfoMsg.bits.TBOX_ECallSts = stCallStatus.u8CallState;
+                if (stCallStatus.u8DurationValid != 0U)
+                {
+                    g_TxTBOX_EcallInfoMsg.bits.TBOX_EcallTiSec = (uint8_t)(stCallStatus.u32DurationSeconds % 60U);
+                    g_TxTBOX_EcallInfoMsg.bits.TBOX_EcallTiMin = (uint8_t)((stCallStatus.u32DurationSeconds / 60U) % 60U);
+                    g_TxTBOX_EcallInfoMsg.bits.TBOX_EcallTiHr = (uint8_t)(stCallStatus.u32DurationSeconds / 3600U);
+                }
+                else
+                {
+                    /* ¾ØÕóµÚ178ÖÁ180ĞĞ£ºÃëºÍ·ÖÎªFF£¬Ğ¡Ê±ÎªÎåÎ»1F£¬¾ù±íÊ¾²»¿ÉÓÃ¡£ */
+                    g_TxTBOX_EcallInfoMsg.bits.TBOX_EcallTiSec = 0xFFU;
+                    g_TxTBOX_EcallInfoMsg.bits.TBOX_EcallTiMin = 0xFFU;
+                    g_TxTBOX_EcallInfoMsg.bits.TBOX_EcallTiHr = 0x1FU;
+                }
+            }
             break;
         case CANMATRIX_TX_STATE_CLEAR:
-            /* Do not erase remote commands without an application-level policy. */
+            /* ÖÜÆÚ·¢ËÍÍê³É²»´ú±íÍ¨»°½áÊø£¬²»Çå³ıÉÏ´ÎÄ£×é×´Ì¬¡£ */
             break;
         default:
             break;
     }
-    return 0;
+    return 0U;
 }
 
 /*******************************************************
@@ -2515,7 +2502,7 @@ CanMatrix_RxList_Type g_CanMatrixRxList[CANMATRIX_RX_LIST_NUM] =
 {
 /* 1*/ {CANFD, 0x21 ,    0, 8, FALSE, g_RxDHU_ChallengeMsg.data, CanMatrix_RxDHU_ChallengeMsgFun},
 /* 2*/ {CANFD, 0x36 ,    0, 8, FALSE, g_RxIDCU_ChallengeMsg.data, CanMatrix_RxIDCU_ChallengeMsgFun},
-/* 3*/ {CAN  , 0x10C, RTESYS_MSD_SRS_MAX_AGE_MS, 8, FALSE, g_RxSRS_InfoMsg.data, CanMatrix_RxSRS_InfoMsgFun},
+/* 3*/ {CAN  , 0x10C, RTESYS_MSD_SRS_MAX_AGE_MS, 8, FALSE, g_RxSRS_InfoMsg.data, NULL},
 /* 4*/ {CANFD, 0x116, RTESYS_MSD_GEAR_MAX_AGE_MS, 8, FALSE, g_RxCCU_VehGearMsg.data, CanMatrix_RxCCU_VehGearMsgFun},
 /* 5*/ {CANFD, 0x130,  500, 8, FALSE, g_RxBMS_RunStsMsg.data, CanMatrix_RxBMS_RunStsMsgFun},
 /* 6*/ {CANFD, 0x201, 2000, 8, FALSE, g_RxCCU_VacInfoMsg.data, CanMatrix_RxCCU_VacInfoMsgFun},

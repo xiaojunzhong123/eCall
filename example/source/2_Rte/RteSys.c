@@ -18,6 +18,8 @@
 #include "FreeRTOS.h"
 #include <string.h>
 /*-------------variable statement---------------------*/
+/* 模组协议任务发布、CAN任务读取，所有运行期访问经下方接口短临界区保护；不混入车辆冻结快照。 */
+static RteSysModemCallStatus_t s_mRteCallSts; /* 模组通话状态 */
 static RteSwitchState_t s_aeRteSysSwitchState[RTESYS_SWITCH_NUM]; /* 输入服务写入的归一化开关缓存。 */
 static RteSwitchState_t s_aeRteSysOutputState[RTESYS_OUTPUT_NUM]; /* 输出服务周期应用的逻辑输出请求缓存。 */
 
@@ -434,12 +436,19 @@ static RteSysMsdSnapshotStatus_t s_mRteMsdSnapshotSts; /* 数据组发布版本计数。 *
 /*******************************************************
   * Name    :RteSys_InitMsdSignals
   * Author  :xiaojunzhong
-  * Function:任务创建前将车辆、定位、时间等数据组初始化为不可用。
+  * Function:任务创建前初始化车辆数据组及独立模组通话观测。
+  * Input   :无；仅启动阶段调用。
+  * Output  :无返回值，车辆数据与模组来源保持无效。
+  * Caller  :TaskManager_Start，任务创建前一次。
+  * Precond :内核任务尚未运行，不得在正在通话或写配置时重新调用。
+  * Failure :初始无显示不表示已获得模组空闲结论。
+  * Effect  :清空共享缓存；原CAN初始值仍为零，不发送控制命令。
   * Version :V1.0.0
   * Data    :2026.10.31
 *******************************************************/
 void RteSys_InitMsdSignals(void)
 {
+    (void)memset(&s_mRteCallSts, 0, sizeof(s_mRteCallSts));
     (void)memset(&s_mRteMsdSrsSts, 0, sizeof(s_mRteMsdSrsSts));
     (void)memset(&s_mRteMsdGearSts, 0, sizeof(s_mRteMsdGearSts));
     (void)memset(&s_mRteMsdNavSts, 0, sizeof(s_mRteMsdNavSts));
@@ -957,67 +966,152 @@ void RteSys_PublishMsdPropulsion(uint8_t u8PropulsionMask, uint8_t u8Valid)
     portEXIT_CRITICAL();
 }
 
-/*******************************************************
-  * Name    :RteSys_ReadMsdSnapshot
-  * Author  :xiaojunzhong
-  * Function:捕获同一发布版本的事故数据，锁外判定有效性并投影最多两个真实历史点。
-  * Version :V1.1.0
-  * Data    :2026.10.31
-*******************************************************/
-uint8_t RteSys_ReadMsdSnapshot(RteSysMsdSnapshot_t *pstSnapshot)
-{
-    RteSysMsdSignals_t stSignals; /* 完整数据组的调用者副本。 */
-    uint32_t u32PreviousUtcSeconds; /* 前一个已选历史点 UTC，保证真实时间顺序。 */
-    uint8_t u8Index; /* 当前数组或通道索引。 */
 
+/*******************************************************
+  * Name    :RteSys_ReadVehicleSnapshot
+  * Author  :xiaojunzhong
+  * Function:复制本机车辆数据，不包含定位、时间或标准数据编码。
+  * Version :V1.3.0
+  * Data    :2026.11.03
+*******************************************************/
+uint8_t RteSys_ReadVehicleSnapshot(RteSysVehicleSnapshot_t *pstSnapshot)
+{
     if (pstSnapshot == NULL)
     {
         return 0U;
     }
     (void)memset(pstSnapshot, 0, sizeof(*pstSnapshot));
+    /* 任务上下文短临界区复制同一版本，调用者持有结果，不暴露私有实例。 */
     portENTER_CRITICAL();
     pstSnapshot->u32SnapshotMs = osKernelSysTick();
     pstSnapshot->u32Revision = s_mRteMsdSnapshotSts.u32Revision;
-    pstSnapshot->u32HeadingSampleMs = s_mRteMsdHeadingSts.u32UpdateMs;
+    pstSnapshot->stVehicle = s_mRteMsdVehicleCfg;
+    pstSnapshot->stSrs = s_mRteMsdSrsSts;
+    pstSnapshot->stGear = s_mRteMsdGearSts;
+    pstSnapshot->stLoad = s_mRteMsdLoadSts;
+    pstSnapshot->stImpact = s_mRteMsdImpactSts;
     pstSnapshot->u8PropulsionMask = s_mRteMsdPropulsionCfg.u8Mask;
     pstSnapshot->u8PropulsionValid = s_mRteMsdPropulsionCfg.u8Valid;
-    RteSys_CopyMsdSignalsLocked(&stSignals);
     portEXIT_CRITICAL();
-    RteSys_QualifyMsdSignals(&stSignals, pstSnapshot->u32SnapshotMs, pstSnapshot->u32HeadingSampleMs);
-    pstSnapshot->stNavigation = stSignals.stNavigation;
-    pstSnapshot->stUtc = stSignals.stUtc;
-    pstSnapshot->stVehicle = stSignals.stVehicle;
-    pstSnapshot->stSrs = stSignals.stSrs;
-    pstSnapshot->stGear = stSignals.stGear;
-    pstSnapshot->stLoad = stSignals.stLoad;
-    pstSnapshot->stPositionQuality = stSignals.stPositionQuality;
-    /* A valid fix alone is not evidence of the standard trust criterion. */
-    if (pstSnapshot->stNavigation.u8PositionValid == 0U)
+
+    /* 来源年龄在锁外判定；复制成功不等于每个字段都有效。 */
+    if ((pstSnapshot->u32SnapshotMs - pstSnapshot->stSrs.u32UpdateMs) >= RTESYS_MSD_SRS_MAX_AGE_MS)
     {
-        pstSnapshot->stPositionQuality.u8Valid = 0U;
+        pstSnapshot->stSrs.u8Received = 0U;
+    }
+    if ((pstSnapshot->u32SnapshotMs - pstSnapshot->stGear.u32UpdateMs) >= RTESYS_MSD_GEAR_MAX_AGE_MS)
+    {
+        pstSnapshot->stGear.u8Received = 0U;
+    }
+    if ((pstSnapshot->stGear.u8Received == 0U)
+        || (pstSnapshot->stGear.u8Gear > 3U))
+    {
+        pstSnapshot->stGear.u8GearValid = 0U;
+    }
+    if ((pstSnapshot->stLoad.u8Received == 0U)
+        || ((pstSnapshot->u32SnapshotMs - pstSnapshot->stLoad.u32UpdateMs) >= RTESYS_MSD_LOAD_MAX_AGE_MS))
+    {
+        pstSnapshot->stLoad.u8Received = 0U;
+        pstSnapshot->stLoad.u8LoadValid = 0U;
+        pstSnapshot->stLoad.u8OccupantsValid = 0U;
+        pstSnapshot->stLoad.u8Occupants = RTESYS_MSD_OCCUPANT_UNKNOWN;
+        pstSnapshot->stLoad.u8OccupantsLimited = 0U;
+    }
+    if ((pstSnapshot->u32SnapshotMs - pstSnapshot->stImpact.u32UpdateMs) >= RTESYS_MSD_PUBLISH_MAX_AGE_MS)
+    {
+        pstSnapshot->stImpact.u8DeltaVLongitudinalValid = 0U;
+        pstSnapshot->stImpact.u8DeltaVLateralValid = 0U;
+        pstSnapshot->stImpact.u8RolloverValid = 0U;
+    }
+    if (pstSnapshot->stImpact.u8Rollover > 1U)
+    {
+        pstSnapshot->stImpact.u8RolloverValid = 0U;
     }
     if ((pstSnapshot->stVehicle.u8VehicleType < 1U)
         || (pstSnapshot->stVehicle.u8VehicleType > 13U))
     {
         pstSnapshot->stVehicle.u8VehicleTypeValid = 0U;
     }
-    u32PreviousUtcSeconds = stSignals.stNavigation.u32UtcSeconds;
-    for (u8Index = 0U; (u8Index < stSignals.stHistory.u8Count) && (u8Index < RTESYS_MSD_CS_HISTORY_COUNT); u8Index++)
+    return 1U;
+}
+
+/*******************************************************
+  * Name    :RteSys_PublishModemCallStatus
+  * Author  :xiaojunzhong
+  * Function:原子发布模组真实通话状态及可选时长，不解释原始串口帧。
+  * Version :V1.0.0
+  * Data    :2026.11.07
+  * Input   :模组状态零至四；秒数在时长有效时不得超过矩阵上限；有效位为零或一。
+  * Output  :一表示已更新，零表示参数非法且保留原观测。
+  * Caller  :后续单个模组协议任务，不允许ISR直接发布。
+  * Precond :RteSys_InitMsdSignals已在任务创建前执行；原始帧合法性及事件先后由协议层确认。
+  * Failure :保留位状态、非法有效位或超范围时长均拒绝，不伪造结束状态。
+  * Effect  :以短临界区整体替换稳定结论；不调用UART、CAN、通话动作或电源接口。
+*******************************************************/
+uint8_t RteSys_PublishModemCallStatus(RteSysModemCallState_t enCallState, uint32_t u32DurationSeconds, uint8_t u8DurationValid)
+{
+    RteSysModemCallStatus_t stStatus; /* 本次合法观测的局部副本，不向外暴露可写缓存。 */
+
+    if (((uint32_t)enCallState > (uint32_t)RTESYS_MODEM_CALL_ENDED)
+        || (u8DurationValid > 1U)
+        || ((u8DurationValid != 0U)
+            && (u32DurationSeconds > RTESYS_MODEM_CALL_DURATION_MAX_SECONDS)))
     {
-        if ((stSignals.stHistory.ai32LatitudeE7[u8Index] < -900000000L)
-            || (stSignals.stHistory.ai32LatitudeE7[u8Index] > 900000000L)
-            || (stSignals.stHistory.ai32LongitudeE7[u8Index] < -1800000000L)
-            || (stSignals.stHistory.ai32LongitudeE7[u8Index] > 1800000000L)
-            || (stSignals.stHistory.au32UtcSeconds[u8Index] == 0U)
-            || (stSignals.stHistory.au32UtcSeconds[u8Index] >= u32PreviousUtcSeconds))
-        {
-            break;
-        }
-        pstSnapshot->astRecentPosition[u8Index].i32LatitudeE7 = stSignals.stHistory.ai32LatitudeE7[u8Index];
-        pstSnapshot->astRecentPosition[u8Index].i32LongitudeE7 = stSignals.stHistory.ai32LongitudeE7[u8Index];
-        pstSnapshot->astRecentPosition[u8Index].u32UtcSeconds = stSignals.stHistory.au32UtcSeconds[u8Index];
-        pstSnapshot->u8RecentPositionCount++;
-        u32PreviousUtcSeconds = stSignals.stHistory.au32UtcSeconds[u8Index];
+        return 0U;
     }
+    (void)memset(&stStatus, 0, sizeof(stStatus));
+    stStatus.u32UpdateMs = osKernelSysTick();
+    stStatus.u32DurationSeconds = (u8DurationValid != 0U) ? u32DurationSeconds : 0U;
+    stStatus.u8CallState = (uint8_t)enCallState;
+    stStatus.u8SourceValid = 1U;
+    stStatus.u8DurationValid = u8DurationValid;
+    portENTER_CRITICAL();
+    s_mRteCallSts = stStatus;
+    portEXIT_CRITICAL();
+    return 1U;
+}
+
+/*******************************************************
+  * Name    :RteSys_InvalidateModemCallStatus
+  * Author  :xiaojunzhong
+  * Function:使模组通话来源失效，保留最后观测供诊断；CAN不因此发布假结束。
+  * Version :V1.0.0
+  * Data    :2026.11.07
+  * Input   :无。
+  * Output  :无返回值。
+  * Caller  :同一模组协议任务，在确认断链或模组重启时调用；禁止ISR调用。
+  * Precond :已完成共享数据初始化；失联判据和超时由后续协议定义。
+  * Failure :不自行设置未知的超时时间，也不清除CAN最近一次已发送状态。
+  * Effect  :短临界区只清来源有效位；不改状态、时长、采样时刻或业务电源锁。
+*******************************************************/
+void RteSys_InvalidateModemCallStatus(void)
+{
+    portENTER_CRITICAL();
+    s_mRteCallSts.u8SourceValid = 0U;
+    portEXIT_CRITICAL();
+}
+
+/*******************************************************
+  * Name    :RteSys_ReadModemCallStatus
+  * Author  :xiaojunzhong
+  * Function:向CAN发送所属任务复制同一版本的模组状态与时长。
+  * Version :V1.0.0
+  * Data    :2026.11.07
+  * Input   :非空的调用方状态副本指针。
+  * Output  :一表示复制成功，零表示空指针；成功不代表来源有效或车机已静音。
+  * Caller  :CanManageTask中的矩阵发送回调，其他任务也可只读查询；禁止ISR调用。
+  * Precond :共享数据初始化完成；调用方须检查u8SourceValid。
+  * Failure :来源失效仍返回缓存副本，不刷新观测时刻。
+  * Effect  :短临界区复制固定大小状态，无动态内存和阻塞等待。
+*******************************************************/
+uint8_t RteSys_ReadModemCallStatus(RteSysModemCallStatus_t *pstStatus)
+{
+    if (pstStatus == NULL)
+    {
+        return 0U;
+    }
+    portENTER_CRITICAL();
+    *pstStatus = s_mRteCallSts;
+    portEXIT_CRITICAL();
     return 1U;
 }

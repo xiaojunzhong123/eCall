@@ -14,7 +14,6 @@
 #define HMI_LOG_ECALL_ENABLE          1U
 #define HMI_LOG_CAN_ENABLE            0U
 #define HMI_LOG_MODEM_ENABLE          1U
-#define HMI_LOG_GNSS_ENABLE           0U
 #define HMI_LOG_MONITOR_ENABLE        0U
 #define HMI_LOG_POWER_ENABLE          0U
 #define HMI_LOG_APP_ENABLE            1U
@@ -59,11 +58,6 @@ void Hmi_SetEcallCancelWindow(uint8_t u8Active);
 #define HMI_LOG_MODEM(pcText)         do { } while (0)
 #endif
 
-#if (HMI_LOG_GNSS_ENABLE != 0U)
-#define HMI_LOG_GNSS(pcText)          Hmi_LogWithPrefix("[GNSS] ", pcText)
-#else
-#define HMI_LOG_GNSS(pcText)          do { } while (0)
-#endif
 
 #if (HMI_LOG_MONITOR_ENABLE != 0U)
 #define HMI_LOG_MONITOR(pcText)       Hmi_LogWithPrefix("[MONITOR] ", pcText)

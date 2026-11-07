@@ -365,9 +365,6 @@
                     <state>$PROJ_DIR$\..\source\1_App\Ecall</state>
                     <state>$PROJ_DIR$\..\source\1_App\Hmi</state>
                     <state>$PROJ_DIR$\..\source\3_Bsw\CanService</state>
-                    <state>$PROJ_DIR$\..\source\3_Bsw\GnssService</state>
-                    <state>$PROJ_DIR$\..\source\3_Bsw\EcallDiagService</state>
-                    <state>$PROJ_DIR$\..\source\3_Bsw\TimeService</state>
                     <state>$PROJ_DIR$\..\source\3_Bsw\ModemService</state>
                     <state>$PROJ_DIR$\..\source\3_Bsw\MsgIF</state>
                     <state>$PROJ_DIR$\..\source\3_Bsw\PowerService</state>
@@ -395,6 +392,7 @@
                     <state>$PROJ_DIR$\..\source\5_Mcal\Nvm</state>
                     <state>$PROJ_DIR$\..\source\3_Bsw\Eeprom</state>
                     <state>$PROJ_DIR$\..\source\1_App\Memory</state>
+                    <state>$PROJ_DIR$\..\source\3_Bsw\MsdService</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -2362,19 +2360,7 @@
                 <name>$PROJ_DIR$\..\source\1_App\Ecall\Ecall.c</name>
             </file>
             <file>
-                <name>$PROJ_DIR$\..\source\1_App\Ecall\EcallDiag.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\source\1_App\Ecall\EcallDiag.h</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\source\1_App\Ecall\EcallDiag_Cfg.h</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\source\1_App\Hmi\EcallHmi.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\source\1_App\Hmi\EcallHmi.h</name>
+                <name>$PROJ_DIR$\..\source\1_App\Ecall\EcallSelfCheck.c</name>
             </file>
             <file>
                 <name>$PROJ_DIR$\..\source\1_App\Hmi\Hmi.c</name>
@@ -2393,12 +2379,6 @@
             </file>
             <file>
                 <name>$PROJ_DIR$\..\source\2_Rte\RteSys.h</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\source\2_Rte\RteSys_Diag.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\source\2_Rte\RteSys_Diag.h</name>
             </file>
         </group>
         <group>
@@ -2617,25 +2597,9 @@
                 </group>
             </group>
             <group>
-                <name>EcallDiagService</name>
-                <file>
-                    <name>$PROJ_DIR$\..\source\3_Bsw\EcallDiagService\EcallDiagService.c</name>
-                </file>
-                <file>
-                    <name>$PROJ_DIR$\..\source\3_Bsw\EcallDiagService\EcallDiagService.h</name>
-                </file>
-            </group>
-            <group>
                 <name>Eeprom</name>
                 <file>
                     <name>$PROJ_DIR$\..\source\3_Bsw\Eeprom\M95040.c</name>
-                </file>
-            </group>
-
-            <group>
-                <name>GnssService</name>
-                <file>
-                    <name>$PROJ_DIR$\..\source\3_Bsw\GnssService\GnssService.c</name>
                 </file>
             </group>
             <group>
@@ -2704,21 +2668,20 @@
                     </file>
                 </group>
             </group>
-
             <group>
                 <name>ModemService</name>
-
-
-
-
-
                 <file>
                     <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemPower.c</name>
                 </file>
                 <file>
                     <name>$PROJ_DIR$\..\source\3_Bsw\ModemService\ModemPower_Cfg.h</name>
                 </file>
-
+            </group>
+            <group>
+                <name>MsdService</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\3_Bsw\MsdService\MsdService.c</name>
+                </file>
             </group>
             <group>
                 <name>MsgIF</name>
@@ -2743,26 +2706,11 @@
                 <file>
                     <name>$PROJ_DIR$\..\source\3_Bsw\OutputService\OutputService.h</name>
                 </file>
-                <file>
-                    <name>$PROJ_DIR$\..\source\3_Bsw\OutputService\OutputService_Ecall.c</name>
-                </file>
-                <file>
-                    <name>$PROJ_DIR$\..\source\3_Bsw\OutputService\OutputService_Ecall.h</name>
-                </file>
             </group>
             <group>
                 <name>PowerService</name>
                 <file>
                     <name>$PROJ_DIR$\..\source\3_Bsw\PowerService\PowerService.c</name>
-                </file>
-            </group>
-            <group>
-                <name>TimeService</name>
-                <file>
-                    <name>$PROJ_DIR$\..\source\3_Bsw\TimeService\TimeService.c</name>
-                </file>
-                <file>
-                    <name>$PROJ_DIR$\..\source\3_Bsw\TimeService\TimeService.h</name>
                 </file>
             </group>
             <file>
@@ -2792,10 +2740,6 @@
                     <name>$PROJ_DIR$\..\source\4_System\Task\EcallTask.c</name>
                 </file>
                 <file>
-                    <name>$PROJ_DIR$\..\source\4_System\Task\GnssTask.c</name>
-                </file>
-
-                <file>
                     <name>$PROJ_DIR$\..\source\4_System\Task\MonitoringTask.c</name>
                 </file>
                 <file>
@@ -2823,7 +2767,6 @@
                     <name>$PROJ_DIR$\..\source\5_Mcal\Can\Can_Cfg.h</name>
                 </file>
             </group>
-
             <group>
                 <name>Gpio</name>
                 <file>
@@ -2856,6 +2799,9 @@
             </group>
             <group>
                 <name>Nvm</name>
+                <file>
+                    <name>$PROJ_DIR$\..\source\5_Mcal\Nvm\Nvm.c</name>
+                </file>
             </group>
             <group>
                 <name>Spi</name>
@@ -3030,9 +2976,7 @@
                             <state>$PROJ_DIR$\..\source\1_App\Ecall</state>
                             <state>$PROJ_DIR$\..\source\1_App\Hmi</state>
                             <state>$PROJ_DIR$\..\source\3_Bsw\CanService</state>
-                            <state>$PROJ_DIR$\..\source\3_Bsw\GnssService</state>
                             <state>$PROJ_DIR$\..\source\3_Bsw\EcallDiagService</state>
-                            <state>$PROJ_DIR$\..\source\3_Bsw\TimeService</state>
                             <state>$PROJ_DIR$\..\source\3_Bsw\ModemService</state>
                             <state>$PROJ_DIR$\..\source\3_Bsw\MsgIF</state>
                             <state>$PROJ_DIR$\..\source\3_Bsw\PowerService</state>
@@ -3057,6 +3001,7 @@
                             <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Service</state>
                             <state>$PROJ_DIR$\..\source\3_Bsw\Communi\CanUdsService\Uds</state>
                             <state>$PROJ_DIR$\..\source\6_Library</state>
+                            <state>$PROJ_DIR$\..\source\1_App\Memory</state>
                         </option>
                         <option>
                             <name>CCStdIncCheck</name>

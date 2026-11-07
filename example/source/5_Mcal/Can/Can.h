@@ -41,6 +41,10 @@ uint32_t Can_GetRxOverflowCount(void);
 uint32_t Can_GetTxErrorCount(void);
 void Can_ClearBusOffFlag(void);
 void Can_ClearBusOffCnt(void);
+/* 旧通信框架兼容接口：返回现有累计计数，不清零。 */
+uint16_t Can_GetBusOffCnt(void);
+/* 返回现有 STB 发送完成标志，TRUE 为已完成，不清除标志。 */
+Bool Can_CheckIfTxOK(void);
 Bool Can_HasEmptyMail(void);
 void Can_ClearMail(void);
 #endif

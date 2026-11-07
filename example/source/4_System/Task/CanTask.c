@@ -30,7 +30,7 @@ static void CanTask_Entry(void const *argument)
         u8Trigger = CanService_TakeEcallTrigger();
         if (u8Trigger != 0U)
         {
-            EcallTask_RequestTrigger(ECALL_TRIGGER_CAN);
+            EcallTask_RequestTrigger(ECALL_TRIGGER_CAN); //CANÅö×²±¨¾¯
         }
         osDelay(10U);
     }
